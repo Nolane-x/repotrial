@@ -4,7 +4,7 @@ RepoTrial remains fully functional without ForgeOS. The bridge is additive: it i
 
 ## Compatibility target
 
-RepoTrial v0.4 is acceptance-tested against ForgeOS v0.6.1. The current CI baseline is ForgeOS [`cebf9dc671bc838465dcb4651eaed04d57a17f7d`](https://github.com/casioreview20-glitch/forge-os/commit/cebf9dc671bc838465dcb4651eaed04d57a17f7d), so a later upstream change requires an explicit compatibility update rather than silently changing this contract. It calls public CLI surfaces only and does not import ForgeOS internal modules.
+RepoTrial v0.4 is acceptance-tested against ForgeOS v0.6.1. The current CI baseline is ForgeOS [`ab9c54b201697a870f8faeb8da82049fdd251575`](https://github.com/casioreview20-glitch/forge-os/commit/ab9c54b201697a870f8faeb8da82049fdd251575), so a later upstream change requires an explicit compatibility update rather than silently changing this contract. It calls public CLI surfaces only and does not import ForgeOS internal modules.
 
 ForgeOS's authenticated Streamable HTTP MCP transport, quarantined skill intake, Universal Lanes, and optional remote microVM boundary are outside this bridge's authority. The sidecar protects its own loopback HTTP API with its bearer token; it is not an MCP proxy and does not turn a lane selection or sandbox configuration into an execution receipt.
 

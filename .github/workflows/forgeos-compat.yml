@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  forgeos-main-cebf9dc:
+  forgeos-main-ab9c54b:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout RepoTrial
@@ -26,7 +26,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: casioreview20-glitch/forge-os
-          ref: cebf9dc671bc838465dcb4651eaed04d57a17f7d
+          ref: ab9c54b201697a870f8faeb8da82049fdd251575
           path: .forgeos-source
 
       - name: Set up Node.js
