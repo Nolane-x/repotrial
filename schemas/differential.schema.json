@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repotrial.dev/schemas/differential.schema.json",
+  "title": "RepoTrial Differential v1",
+  "type": "object",
+  "required": ["schemaVersion", "baselineReceipt", "currentReceipt", "new", "existing", "resolved", "summary", "receipt"],
+  "properties": {
+    "schemaVersion": { "const": "repotrial.differential.v1" },
+    "baselineReceipt": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+    "currentReceipt": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+    "new": { "type": "array" },
+    "existing": { "type": "array" },
+    "resolved": { "type": "array" },
+    "summary": {
+      "type": "object",
+      "required": ["new", "existing", "resolved"],
+      "properties": {
+        "new": { "type": "integer", "minimum": 0 },
+        "existing": { "type": "integer", "minimum": 0 },
+        "resolved": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "receipt": { "$ref": "#/$defs/receipt" }
+  },
+  "$defs": {
+    "receipt": {
+      "type": "object",
+      "required": ["algorithm", "sha256"],
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    }
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repotrial.dev/schemas/report.schema.json",
+  "title": "RepoTrial Report v2",
+  "type": "object",
+  "required": ["schemaVersion", "scan", "verdict", "charges", "safeguards", "forgeos", "runtime", "supplyChain", "integrity", "receipt"],
+  "properties": {
+    "schemaVersion": { "const": "repotrial.report.v2" },
+    "scan": {
+      "type": "object",
+      "required": ["id", "createdAt", "target", "targetName", "coverage", "totalBytes", "omissions"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "target": { "type": "string" },
+        "targetName": { "type": "string" },
+        "coverage": {
+          "type": "object",
+          "required": ["filesInspected", "bytesInspected", "omitted", "ratio", "complete"],
+          "properties": {
+            "filesInspected": { "type": "integer", "minimum": 0 },
+            "bytesInspected": { "type": "integer", "minimum": 0 },
+            "omitted": { "type": "integer", "minimum": 0 },
+            "ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "complete": { "type": "boolean" }
+          }
+        },
+        "totalBytes": { "type": "integer", "minimum": 0 },
+        "omissions": { "type": "array" }
+      }
+    },
+    "verdict": {
+      "type": "object",
+      "required": ["label", "rank", "score", "severityCounts", "coverage", "rationale"],
+      "properties": {
+        "label": { "enum": ["TRUSTED", "CAUTIOUS", "RECKLESS", "DANGEROUS", "UNPROVEN"] },
+        "rank": { "type": "integer", "minimum": 0, "maximum": 4 },
+        "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "coverage": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "charges": { "type": "array" },
+    "safeguards": { "type": "array" },
+    "forgeos": { "type": "object" },
+    "runtime": { "type": "object" },
+    "supplyChain": { "type": "object" },
+    "differential": { "type": "object" },
+    "integrity": {
+      "type": "object",
+      "required": ["artifactProof", "provenance", "signature", "signatures"],
+      "properties": {
+        "artifactProof": { "type": "string" },
+        "provenance": { "type": "string" },
+        "signature": { "type": ["string", "null"] },
+        "signatures": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "required": ["algorithm", "sha256"],
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    }
+  }
+}

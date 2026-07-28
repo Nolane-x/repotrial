@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "workspace-export.v1",
+  "project": "RepoTrial",
+  "version": "0.4.0",
+  "generatedAt": "2026-07-27T18:30:28+07:00",
+  "baseCommit": "393036dcb1a92c798a89ed9059f7085f7b2ff348",
+  "changeSet": "Add README-VN.md while preserving README.vi.md and keeping README.md as the English primary README.",
+  "preservation": {
+    "README.vi.md": "preserved unchanged for backward-compatible links",
+    "sourceCode": "unchanged",
+    "tests": "unchanged",
+    "ForgeOSIntegration": "unchanged"
+  },
+  "verification": {
+    "unitTests": "136/136 passed",
+    "syntaxCheck": "passed",
+    "npmAudit": "0 vulnerabilities",
+    "npmPack": "README.md, README-VN.md, and README.vi.md included",
+    "productionSelfScan": "TRUSTED; score 0; coverage 1; 94 files; tests/fixtures excluded",
+    "expectedChangedFiles": [
+      "README.md",
+      "README-VN.md",
+      "package.json",
+      "project-manifest.json"
+    ]
+  },
+  "files": [
+    {
+      "relativePath": "README.md",
+      "fileName": "README.md",
+      "mimeType": "text/markdown",
+      "version": "0.4.0",
+      "status": "verified",
+      "description": "English primary README with a visible link to the Vietnamese README.",
+      "sizeBytes": 12996,
+      "sha256": "686734ea59c914b7837277b311af1cba7cc3906b111aa6cfae049b30258cd3e6"
+    },
+    {
+      "relativePath": "README-VN.md",
+      "fileName": "README-VN.md",
+      "mimeType": "text/markdown",
+      "version": "0.4.0",
+      "status": "verified",
+      "description": "Vietnamese README added under the requested filename while preserving the existing README.vi.md.",
+      "sizeBytes": 7480,
+      "sha256": "74507dd3a81685bbffbc18ddb92cb51f45d8e3c5e63895e9869e394d800e1b67"
+    },
+    {
+      "relativePath": "package.json",
+      "fileName": "package.json",
+      "mimeType": "application/json",
+      "version": "0.4.0",
+      "status": "verified",
+      "description": "Publishes README-VN.md in addition to README.md and the preserved README.vi.md compatibility file.",
+      "sizeBytes": 1852,
+      "sha256": "25e72ff463d5c8f76f6a7cc8b30d97ab0778e687c870c414abe9b89d9f6ab3fd"
+    },
+    {
+      "relativePath": "project-manifest.json",
+      "fileName": "project-manifest.json",
+      "mimeType": "application/json",
+      "version": "0.4.0",
+      "status": "verified",
+      "description": "Workspace export manifest listing only files created or modified for the bilingual README update."
+    }
+  ]
+}

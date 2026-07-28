@@ -1,0 +1,44 @@
+name: ForgeOS compatibility
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 3 * * 1'
+  push:
+    paths:
+      - 'src/bridge/**'
+      - 'integrations/forgeos/**'
+      - 'scripts/verify-forgeos-integration.mjs'
+      - 'schemas/forgeos-*.json'
+      - '.github/workflows/forgeos-compat.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  forgeos-v06:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout RepoTrial
+        uses: actions/checkout@v4
+
+      - name: Checkout ForgeOS
+        uses: actions/checkout@v4
+        with:
+          repository: casioreview20-glitch/forge-os
+          path: .forgeos-source
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install RepoTrial
+        run: npm ci --ignore-scripts
+
+      - name: Verify RepoTrial unit and integration contracts
+        run: npm test
+
+      - name: Run real ForgeOS acceptance gate
+        run: npm run verify:forgeos -- --forge-root .forgeos-source

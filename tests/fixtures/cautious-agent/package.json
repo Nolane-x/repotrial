@@ -1,0 +1,7 @@
+{
+  "name": "cautious-agent",
+  "scripts": {
+    "test": "node --test",
+    "verify": "npm test"
+  }
+}

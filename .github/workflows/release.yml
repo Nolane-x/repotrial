@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run check
+      - run: npm run test:coverage
+      - run: npm audit --omit=dev
+
+      - name: Verify local proof and DSSE workflow
+        run: |
+          node bin/repotrial.mjs keygen --output .release-keys
+          node bin/repotrial.mjs scan . \
+            --output .release-report \
+            --forgeos off \
+            --runtime off \
+            --supply-chain offline \
+            --signing-key .release-keys/repotrial-private.pem
+          node bin/repotrial.mjs verify .release-report \
+            --public-key .release-keys/repotrial-public.pem
+
+      - name: Build and run container
+        run: |
+          docker build -t repotrial:${GITHUB_REF_NAME} .
+          docker run --rm repotrial:${GITHUB_REF_NAME} version
+          test "$(docker image inspect repotrial:${GITHUB_REF_NAME} --format '{{.Config.User}}')" = node
+
+      - name: Pack npm package
+        id: pack
+        shell: bash
+        run: |
+          PACKAGE=$(npm pack --json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>process.stdout.write(JSON.parse(s)[0].filename))")
+          echo "package=$PACKAGE" >> "$GITHUB_OUTPUT"
+
+      - uses: sigstore/cosign-installer@v3
+
+      - name: Sign release package with GitHub OIDC
+        env:
+          PACKAGE: ${{ steps.pack.outputs.package }}
+        run: cosign sign-blob --yes --bundle "$PACKAGE.sigstore.json" "$PACKAGE"
+
+      - name: Write checksums
+        env:
+          PACKAGE: ${{ steps.pack.outputs.package }}
+        run: sha256sum "$PACKAGE" "$PACKAGE.sigstore.json" > SHA256SUMS
+
+      - name: Publish npm package with registry provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PACKAGE: ${{ steps.pack.outputs.package }}
+        run: |
+          if [ -n "$NODE_AUTH_TOKEN" ]; then
+            npm publish "$PACKAGE" --access public --provenance
+          else
+            echo 'NPM_TOKEN is unset; GitHub release assets will still be published.'
+          fi
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE: ${{ steps.pack.outputs.package }}
+        run: gh release create "$GITHUB_REF_NAME" "$PACKAGE" "$PACKAGE.sigstore.json" SHA256SUMS --generate-notes --verify-tag

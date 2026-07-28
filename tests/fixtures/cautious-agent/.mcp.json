@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "readonly": {
+      "command": "node",
+      "args": ["server.mjs"],
+      "permissions": ["repository.read"],
+      "egress": ["api.example.com"]
+    }
+  }
+}

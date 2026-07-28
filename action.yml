@@ -1,0 +1,160 @@
+name: RepoTrial
+branding:
+  icon: shield
+  color: red
+description: Evidence-backed static, runtime, supply-chain, differential, and ForgeOS security analysis for AI-agent repositories.
+inputs:
+  path:
+    description: Repository directory to scan.
+    required: false
+    default: .
+  output:
+    description: Artifact directory.
+    required: false
+    default: .repotrial
+  exclude-paths:
+    description: Optional comma-separated repository-relative paths to exclude from all providers.
+    required: false
+    default: ''
+  fail-on:
+    description: cautious, reckless, or dangerous.
+    required: false
+    default: reckless
+  fail-on-new:
+    description: Optional cautious, reckless, or dangerous threshold applied only to new findings.
+    required: false
+    default: ''
+  baseline-ref:
+    description: Optional Git ref used for differential analysis.
+    required: false
+    default: ''
+  runtime-mode:
+    description: off, auto, or sandbox. Sandbox is Linux-only and opt-in.
+    required: false
+    default: 'off'
+  runtime-scripts:
+    description: Optional comma-separated package scripts to detonate.
+    required: false
+    default: ''
+  runtime-max-source-files:
+    description: Maximum repository files copied into each runtime sandbox.
+    required: false
+    default: '20000'
+  runtime-max-source-bytes:
+    description: Maximum repository bytes copied into each runtime sandbox.
+    required: false
+    default: '268435456'
+  supply-chain-mode:
+    description: off, offline, or osv.
+    required: false
+    default: offline
+  signing-key:
+    description: Optional path to an Ed25519 private key in the workspace.
+    required: false
+    default: ''
+  sigstore:
+    description: Create a Sigstore bundle with cosign. Uses GitHub OIDC keyless signing unless sigstore-key is set.
+    required: false
+    default: 'false'
+  sigstore-key:
+    description: Optional cosign key URI or file.
+    required: false
+    default: ''
+  forgeos-mode:
+    description: off, auto, cli, or http.
+    required: false
+    default: 'off'
+  forgeos-root:
+    description: Optional ForgeOS source checkout containing src/cli/forge.mjs.
+    required: false
+    default: ''
+  forgeos-depth:
+    description: security or full. Full adds kernel evidence and a remediation RoutePlan.
+    required: false
+    default: security
+  upload-sarif:
+    description: Upload SARIF to GitHub code scanning. Caller must grant security-events write permission.
+    required: false
+    default: 'false'
+outputs:
+  verdict:
+    description: RepoTrial verdict label.
+    value: ${{ steps.scan.outputs.verdict }}
+  score:
+    description: Deterministic risk score.
+    value: ${{ steps.scan.outputs.score }}
+  new-findings:
+    description: Number of findings introduced since the baseline.
+    value: ${{ steps.scan.outputs.new_findings }}
+  report-path:
+    description: Portable HTML report path.
+    value: ${{ steps.scan.outputs.report_path }}
+  sarif-path:
+    description: SARIF 2.1.0 report path.
+    value: ${{ steps.scan.outputs.sarif_path }}
+  sbom-path:
+    description: CycloneDX 1.6 SBOM path.
+    value: ${{ steps.scan.outputs.sbom_path }}
+  proof-path:
+    description: Artifact proof path.
+    value: ${{ steps.scan.outputs.proof_path }}
+  attestation-path:
+    description: Signed DSSE provenance path when signing is enabled.
+    value: ${{ steps.scan.outputs.attestation_path }}
+  sigstore-path:
+    description: Sigstore bundle path when cosign signing is enabled.
+    value: ${{ steps.scan.outputs.sigstore_path }}
+  receipt:
+    description: SHA-256 report receipt.
+    value: ${{ steps.scan.outputs.receipt }}
+  forgeos-version:
+    description: Connected ForgeOS version when available.
+    value: ${{ steps.scan.outputs.forgeos_version }}
+  forgeos-technique:
+    description: Primary ForgeOS remediation technique when full mode is enabled.
+    value: ${{ steps.scan.outputs.forgeos_technique }}
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+    - name: Install cosign
+      if: inputs.sigstore == 'true'
+      uses: sigstore/cosign-installer@v3
+    - name: Run RepoTrial
+      id: scan
+      shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_OUTPUT: ${{ inputs.output }}
+        INPUT_EXCLUDE_PATHS: ${{ inputs.exclude-paths }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
+        INPUT_BASELINE_REF: ${{ inputs.baseline-ref }}
+        INPUT_RUNTIME_MODE: ${{ inputs.runtime-mode }}
+        INPUT_RUNTIME_SCRIPTS: ${{ inputs.runtime-scripts }}
+        INPUT_RUNTIME_MAX_SOURCE_FILES: ${{ inputs.runtime-max-source-files }}
+        INPUT_RUNTIME_MAX_SOURCE_BYTES: ${{ inputs.runtime-max-source-bytes }}
+        INPUT_SUPPLY_CHAIN_MODE: ${{ inputs.supply-chain-mode }}
+        INPUT_SIGNING_KEY: ${{ inputs.signing-key }}
+        INPUT_SIGSTORE: ${{ inputs.sigstore }}
+        INPUT_SIGSTORE_KEY: ${{ inputs.sigstore-key }}
+        INPUT_FORGEOS_MODE: ${{ inputs.forgeos-mode }}
+        INPUT_FORGEOS_ROOT: ${{ inputs.forgeos-root }}
+        INPUT_FORGEOS_DEPTH: ${{ inputs.forgeos-depth }}
+      run: node "$GITHUB_ACTION_PATH/scripts/github-action.mjs"
+    - name: Upload RepoTrial SARIF
+      if: always() && inputs.upload-sarif == 'true'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ steps.scan.outputs.sarif_path }}
+        category: repotrial
+    - name: Upload RepoTrial report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: repotrial-report
+        path: ${{ inputs.output }}
+        if-no-files-found: error

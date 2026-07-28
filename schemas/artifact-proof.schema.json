@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repotrial.dev/schemas/artifact-proof.schema.json",
+  "title": "RepoTrial Artifact Proof v1",
+  "type": "object",
+  "required": ["schemaVersion", "createdAt", "artifacts", "invariants", "invariantResults", "receipt"],
+  "properties": {
+    "schemaVersion": { "const": "repotrial.artifact-proof.v1" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "reportReceipt": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "size", "sha256"],
+        "properties": {
+          "name": { "type": "string" },
+          "size": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        }
+      }
+    },
+    "invariants": { "type": "array", "items": { "type": "string" } },
+    "invariantResults": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "passed"],
+        "properties": { "id": { "type": "string" }, "passed": { "type": "boolean" } }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "required": ["algorithm", "sha256"],
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    }
+  }
+}

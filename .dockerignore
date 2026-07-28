@@ -1,0 +1,11 @@
+.git
+.github
+.worktrees
+.repotrial
+node_modules
+coverage
+*.tgz
+*.zip
+tests
+docs
+project-manifest.json

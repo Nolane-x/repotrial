@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repotrial.dev/schemas/runtime.schema.json",
+  "title": "RepoTrial Runtime Evidence v1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "status",
+    "candidates",
+    "runs",
+    "truncatedCandidates"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "repotrial.runtime.v1"
+    },
+    "status": {
+      "enum": [
+        "disabled",
+        "skipped",
+        "unavailable",
+        "completed"
+      ]
+    },
+    "provider": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "isolation": {
+      "type": "object",
+      "properties": {
+        "sourceCopy": {
+          "type": "boolean"
+        },
+        "chroot": {
+          "type": "boolean"
+        },
+        "userNamespace": {
+          "type": "boolean"
+        },
+        "mountNamespace": {
+          "type": "boolean"
+        },
+        "utsNamespace": {
+          "type": "boolean"
+        },
+        "ipcNamespace": {
+          "type": "boolean"
+        },
+        "pidNamespace": {
+          "type": "boolean"
+        },
+        "cgroupNamespace": {
+          "type": "boolean"
+        },
+        "networkNamespace": {
+          "type": "boolean"
+        },
+        "inheritedSecrets": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/candidate"
+      }
+    },
+    "runs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/run"
+      }
+    },
+    "truncatedCandidates": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "workspace": {
+      "type": "object",
+      "properties": {
+        "files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxFiles": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "limitExceeded": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "files",
+            "bytes",
+            "unreadable",
+            null
+          ]
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "candidate": {
+      "type": "object",
+      "required": [
+        "kind",
+        "packagePath",
+        "name",
+        "command",
+        "workingDirectory"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "package-script",
+            "agent-hook"
+          ]
+        },
+        "packagePath": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "command": {
+          "type": "string"
+        },
+        "workingDirectory": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "event": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "run": {
+      "type": "object",
+      "required": [
+        "candidate",
+        "status",
+        "timedOut",
+        "events",
+        "filesystemChanges"
+      ],
+      "properties": {
+        "candidate": {
+          "$ref": "#/$defs/candidate"
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "failed",
+            "timeout"
+          ]
+        },
+        "exitCode": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "signal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timedOut": {
+          "type": "boolean"
+        },
+        "durationMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "stdout": {
+          "type": "string"
+        },
+        "stderr": {
+          "type": "string"
+        },
+        "outputTruncated": {
+          "type": "boolean"
+        },
+        "events": {
+          "type": "array"
+        },
+        "filesystemChanges": {
+          "type": "array"
+        }
+      }
+    }
+  }
+}

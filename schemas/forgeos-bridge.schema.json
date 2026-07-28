@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repotrial.dev/schemas/forgeos-bridge.schema.json",
+  "title": "RepoTrial ForgeOS Bridge v1 Response",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schemaVersion", "status", "mode", "findings", "diagnostics"],
+  "properties": {
+    "schemaVersion": { "const": "repotrial.forgeos.bridge.v1" },
+    "status": { "enum": ["ok", "disabled", "unavailable", "timeout", "error"] },
+    "mode": { "enum": ["off", "cli", "http"] },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["id", "source", "severity", "title"],
+        "properties": {
+          "id": { "type": "string" },
+          "source": { "const": "forgeos" },
+          "severity": { "enum": ["critical", "high", "medium", "low", "info"] },
+          "title": { "type": "string" },
+          "path": { "type": "string" },
+          "line": { "type": ["integer", "null"] },
+          "code": { "type": "string" }
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "properties": {
+        "exitCode": { "type": ["integer", "null"] },
+        "depth": { "enum": ["security", "full"] },
+        "outputTruncated": { "type": "boolean" },
+        "enrichmentErrors": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "security": {
+      "type": "object",
+      "required": ["status", "findings", "summary"],
+      "properties": {
+        "status": { "enum": ["pass", "review-required", "blocked"] },
+        "findings": { "type": "array" },
+        "summary": { "type": "object" },
+        "reportSha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "engine": {
+      "type": "object",
+      "required": ["version"],
+      "properties": {
+        "version": { "type": "string" },
+        "kernelTechniqueCount": { "type": ["integer", "null"] },
+        "outcomeCount": { "type": ["integer", "null"] },
+        "agentSurfaceAdversarial": { "type": ["object", "null"] }
+      }
+    },
+    "remediationRoute": {
+      "type": "object",
+      "required": ["steps", "blockers"],
+      "properties": {
+        "steps": { "type": "array" },
+        "blockers": { "type": "array" },
+        "executionGroups": { "type": "array" }
+      }
+    }
+  }
+}

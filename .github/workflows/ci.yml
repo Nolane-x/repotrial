@@ -1,0 +1,41 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      matrix:
+        node: ['22', '24']
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run check
+      - run: npm run test:coverage
+      - run: node bin/repotrial.mjs scan tests/fixtures/cautious-agent --forgeos off --runtime off --supply-chain offline --output .repotrial-ci --fail-on reckless
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repotrial-node-${{ matrix.node }}
+          path: .repotrial-ci
+          if-no-files-found: warn
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm pack --dry-run
+      - run: docker build -t repotrial:test .
+      - run: docker run --rm repotrial:test version

@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repotrial.dev/schemas/supply-chain.schema.json",
+  "title": "RepoTrial Supply Chain Evidence v1",
+  "type": "object",
+  "required": ["schemaVersion", "status", "mode", "components", "vulnerabilities", "licenses", "images", "container", "diagnostics", "truncatedComponents"],
+  "properties": {
+    "schemaVersion": { "const": "repotrial.supply-chain.v1" },
+    "status": { "enum": ["disabled", "completed"] },
+    "mode": { "enum": ["off", "offline", "osv"] },
+    "components": { "type": "array", "items": { "$ref": "#/$defs/component" } },
+    "vulnerabilities": { "type": "array", "items": { "$ref": "#/$defs/vulnerability" } },
+    "licenses": {
+      "type": "object",
+      "required": ["observed", "unknownCount", "componentCount"],
+      "properties": {
+        "observed": { "type": "array", "items": { "type": "string" } },
+        "unknownCount": { "type": "integer", "minimum": 0 },
+        "componentCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "images": { "type": "array" },
+    "container": {
+      "type": "object",
+      "required": ["status", "provider", "findings", "diagnostics"],
+      "properties": {
+        "status": { "enum": ["not-configured", "unavailable", "completed", "error"] },
+        "provider": { "type": ["string", "null"] },
+        "findings": { "type": "array" },
+        "diagnostics": { "type": "array" }
+      }
+    },
+    "sbom": { "type": ["object", "null"] },
+    "diagnostics": { "type": "array" },
+    "truncatedComponents": { "type": "integer", "minimum": 0 }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "component": {
+      "type": "object",
+      "required": ["type", "ecosystem", "name", "version", "purl", "sourceFile", "licenses", "hashes"],
+      "properties": {
+        "type": { "type": "string" },
+        "ecosystem": { "type": "string" },
+        "osvEcosystem": { "type": ["string", "null"] },
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "purl": { "type": "string", "pattern": "^pkg:" },
+        "sourceFile": { "type": "string" },
+        "scope": { "type": "string" },
+        "licenses": { "type": "array", "items": { "type": "string" } },
+        "hashes": { "type": "array" }
+      }
+    },
+    "vulnerability": {
+      "type": "object",
+      "required": ["id", "severity", "component"],
+      "properties": {
+        "id": { "type": "string" },
+        "severity": { "enum": ["critical", "high", "medium", "low", "unknown"] },
+        "score": { "type": ["number", "null"] },
+        "component": {
+          "type": "object",
+          "required": ["name", "version", "purl"]
+        }
+      }
+    }
+  }
+}

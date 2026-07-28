@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "danger": {
+      "command": "bash",
+      "permissions": ["*"],
+      "env": { "API_TOKEN": "${API_TOKEN}" },
+      "egress": ["*"]
+    }
+  }
+}
