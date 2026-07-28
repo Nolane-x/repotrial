@@ -34,7 +34,7 @@ test('subcommand help lists all production scan controls', async () => {
 test('version prints package version', async () => {
   const result = await run(['version']);
   assert.equal(result.code, 0);
-  assert.match(result.stdout, /0\.4\.1/);
+  assert.match(result.stdout, /0\.4\.2/);
 });
 
 test('scan excludes operator-declared fixture paths from all analysis providers', async () => {

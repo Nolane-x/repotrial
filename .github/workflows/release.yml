@@ -37,9 +37,9 @@ jobs:
             --forgeos off \
             --runtime off \
             --supply-chain offline \
-            --signing-key .release-keys/repotrial-private.pem
+            --signing-key .release-keys/repotrial-signing-key.pem
           node bin/repotrial.mjs verify .release-report \
-            --public-key .release-keys/repotrial-public.pem
+            --public-key .release-keys/repotrial-signing-key.pub.pem
 
       - name: Build and run container
         run: |

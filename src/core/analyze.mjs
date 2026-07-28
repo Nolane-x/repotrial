@@ -20,7 +20,7 @@ import { buildArtifactProof, buildProvenance } from '../integrity/provenance.mjs
 import { signStatement } from '../integrity/sign.mjs';
 import { signWithCosign } from '../integrity/cosign.mjs';
 
-const VERSION = '0.4.1';
+const VERSION = '0.4.2';
 
 export async function scanRepository(options = {}) {
   const root = path.resolve(options.root ?? process.cwd());

@@ -246,13 +246,13 @@ The action exposes verdict, score, new-finding count, HTML, SARIF, SBOM, proof, 
 ## Docker
 
 ```bash
-docker build -t repotrial:0.4.1 .
-docker run --rm repotrial:0.4.1 version
+docker build -t repotrial:0.4.2 .
+docker run --rm repotrial:0.4.2 version
 
 docker run --rm \
   -v "$PWD:/workspace:ro" \
   -v "$PWD/.repotrial:/output" \
-  repotrial:0.4.1 scan /workspace \
+  repotrial:0.4.2 scan /workspace \
   --output /output \
   --forgeos off \
   --runtime off \

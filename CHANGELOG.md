@@ -2,6 +2,10 @@
 
 All notable changes are documented here.
 
+## 0.4.2 — 2026-07-28
+
+- Correct the release proof workflow to use the actual key pair filenames emitted by `repotrial keygen`.
+
 ## 0.4.1 — 2026-07-28
 
 - Fix Windows fixture paths with `fileURLToPath`.

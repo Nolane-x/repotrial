@@ -170,8 +170,8 @@ Action trả verdict, score, số finding mới, HTML, SARIF, SBOM, proof, DSSE,
 ## Docker
 
 ```bash
-docker build -t repotrial:0.4.1 .
-docker run --rm repotrial:0.4.1 version
+docker build -t repotrial:0.4.2 .
+docker run --rm repotrial:0.4.2 version
 ```
 
 Image chạy bằng user `node`, không phải root. Runtime sandbox bên trong container phụ thuộc việc host cho phép unprivileged namespaces; nếu không, RepoTrial trả `runtime.unavailable`, không hạ mức cách ly.

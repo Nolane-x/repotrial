@@ -95,7 +95,7 @@ export function buildCycloneDx(components, options = {}) {
     version: 1,
     metadata: {
       component: { type: 'application', name: options.rootName ?? 'repository', version: `sha256:${digest.slice(0, 16)}` },
-      tools: { components: [{ type: 'application', name: 'RepoTrial', version: '0.4.1' }] },
+      tools: { components: [{ type: 'application', name: 'RepoTrial', version: '0.4.2' }] },
       properties: (options.sourceFiles ?? []).map((value) => ({ name: 'repotrial:inventory-source', value }))
     },
     components: bomComponents

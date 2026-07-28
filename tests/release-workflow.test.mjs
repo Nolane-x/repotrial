@@ -8,6 +8,8 @@ test('release workflow verifies, publishes provenance, signs artifacts, and atta
   assert.match(workflow, /npm publish[^\n]*--provenance/);
   assert.match(workflow, /cosign sign-blob/);
   assert.match(workflow, /repotrial\.mjs verify/);
+  assert.match(workflow, /repotrial-signing-key\.pem/);
+  assert.match(workflow, /repotrial-signing-key\.pub\.pem/);
   assert.match(workflow, /sha256sum/);
   assert.match(workflow, /docker build/);
 });
