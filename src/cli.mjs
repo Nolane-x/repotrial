@@ -12,6 +12,7 @@ import { verifyArtifactProof, verifyProvenanceBinding } from './integrity/proven
 import { verifyWithCosign } from './integrity/cosign.mjs';
 import { createReportServer } from './server.mjs';
 import { stableStringify } from './core/hash.mjs';
+import { normalizeReasoningThreshold, reasoningMeetsSeverity, reasoningDifferentialMeetsSeverity } from './reasoning/gates.mjs';
 
 const VERSION = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version;
 
@@ -260,21 +261,6 @@ function parseOptions(args, allowed) {
 }
 function enumValue(value, allowed, name) { const normalized = String(value).toLowerCase(); if (!allowed.includes(normalized)) throw new Error(`${name} must be ${allowed.join(', ')}.`); return normalized; }
 function normalizeThreshold(value) { const label = String(value).toUpperCase(); if (!['CAUTIOUS', 'RECKLESS', 'DANGEROUS'].includes(label)) throw new Error('Threshold must be cautious, reckless, or dangerous.'); return label; }
-function normalizeReasoningThreshold(value, flag) { const normalized = String(value).toLowerCase(); if (!['info', 'low', 'medium', 'high', 'critical'].includes(normalized)) throw new Error(`Invalid reasoning threshold for ${flag}: ${value}. Expected info, low, medium, high, or critical.`); return normalized; }
-function reasoningMeetsSeverity(reasoning, threshold) {
-  if (!reasoning) return false;
-  const rank = severityRank(threshold);
-  return (reasoning.hypotheses ?? []).some((item) => ['PROVEN', 'SUPPORTED'].includes(item.state) && severityRank(item.severity) >= rank)
-    || (reasoning.invariants?.results ?? []).some((item) => item.state === 'VIOLATED' && severityRank(item.severity) >= rank);
-}
-function reasoningDifferentialMeetsSeverity(reasoning, threshold) {
-  if (!reasoning) return false;
-  const rank = severityRank(threshold);
-  return (reasoning.attackPaths?.new ?? []).some((item) => severityRank(item.severity) >= rank)
-    || (reasoning.invariants?.newViolations ?? []).some((item) => severityRank(item.severity) >= rank)
-    || (reasoning.hypotheses?.regressed ?? []).some((item) => ['PROVEN', 'SUPPORTED'].includes(item.to) && severityRank(item.severity) >= rank);
-}
-function severityRank(value) { return ({ info: 0, low: 1, medium: 2, high: 3, critical: 4 })[String(value ?? '').toLowerCase()] ?? -1; }
 function positiveNumber(value, name) { const number = Number(value); if (!Number.isInteger(number) || number <= 0) throw new Error(`${name} must be a positive integer.`); return number; }
 function parseJsonArray(value, name) { let parsed; try { parsed = JSON.parse(value); } catch { throw new Error(`${name} must be a JSON array.`); } if (!Array.isArray(parsed) || parsed.some((item) => typeof item !== 'string')) throw new Error(`${name} must be a JSON array of strings.`); return parsed; }
 function commaSeparated(value) { return value ? String(value).split(',').map((item) => item.trim()).filter(Boolean) : []; }
