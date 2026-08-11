@@ -96,7 +96,11 @@ function normalizeInput(input) {
 function buildReasoningCore(input) {
   const evidenceNodes = dedupeById(input.charges.map(buildEvidenceNode));
   const safeguardNodes = dedupeById(input.safeguards.map(buildSafeguardNode));
-  const chargeByEvidenceId = new Map(input.charges.map((item) => [evidenceNodeId(item), item]));
+  const chargeByEvidenceId = new Map();
+  for (const charge of input.charges) {
+    const id = evidenceNodeId(charge);
+    if (!chargeByEvidenceId.has(id)) chargeByEvidenceId.set(id, charge);
+  }
   const capabilitySupport = new Map();
   const capabilityNodes = new Map();
   const edges = [];
@@ -390,7 +394,7 @@ function isDirectProof(charge) {
 }
 
 function evidenceNodeId(charge) {
-  return `ev:${digest(canonicalChargeKey(charge))}`;
+  return `ev:${digest(canonicalEvidenceIdentityKey(charge))}`;
 }
 
 function safeguardNodeId(safeguard) {
@@ -413,16 +417,26 @@ function buildEdge(from, to, relation) {
   return { id: `edge:${digest(`${from}\0${relation}\0${to}`)}`, from, to, relation };
 }
 
-function canonicalChargeKey(charge) {
+function canonicalEvidenceIdentityKey(charge) {
+  const fingerprints = evidenceFingerprints(charge);
   return stableStringify({
     ruleId: stringValue(charge?.ruleId, 'unknown-rule'),
+    source: stringValue(charge?.source, 'unknown'),
+    evidenceFingerprints: fingerprints.length
+      ? fingerprints
+      : [`unanchored:${stringValue(charge?.title, stringValue(charge?.ruleId, 'unknown-rule'))}`]
+  });
+}
+
+function canonicalChargeKey(charge) {
+  return stableStringify({
+    identity: canonicalEvidenceIdentityKey(charge),
     title: stringValue(charge?.title, ''),
     severity: normalizedSeverity(charge?.severity),
     status: stringValue(charge?.status, 'unknown'),
     confidence: stringValue(charge?.confidence, 'low'),
-    source: stringValue(charge?.source, 'unknown'),
-    evidenceFingerprints: evidenceFingerprints(charge),
-    rationale: stringValue(charge?.rationale, '')
+    rationale: stringValue(charge?.rationale, ''),
+    remediation: stringValue(charge?.remediation, '')
   });
 }
 
