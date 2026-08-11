@@ -4,6 +4,7 @@ import path from 'node:path';
 import { scanRepository } from '../src/core/analyze.mjs';
 import { calculateVerdict, verdictMeetsThreshold } from '../src/core/verdict.mjs';
 import { encodeGithubCommandValue, normalizeActionChoice, normalizeActionThreshold } from '../src/github.mjs';
+import { normalizeReasoningThreshold, reasoningMeetsSeverity, reasoningDifferentialMeetsSeverity } from '../src/reasoning/gates.mjs';
 
 const root = process.env.INPUT_PATH || '.';
 const outputDir = path.resolve(process.env.INPUT_OUTPUT || '.repotrial');
@@ -13,6 +14,8 @@ const runtimeMode = normalizeActionChoice(process.env.INPUT_RUNTIME_MODE, 'runti
 const supplyMode = normalizeActionChoice(process.env.INPUT_SUPPLY_CHAIN_MODE, 'supply-chain-mode', ['off', 'offline', 'osv'], 'offline');
 const failOn = normalizeActionThreshold(process.env.INPUT_FAIL_ON);
 const failOnNew = process.env.INPUT_FAIL_ON_NEW ? normalizeActionThreshold(process.env.INPUT_FAIL_ON_NEW) : null;
+const failOnReasoning = process.env.INPUT_FAIL_ON_REASONING ? normalizeReasoningThreshold(process.env.INPUT_FAIL_ON_REASONING, 'fail-on-reasoning') : null;
+const failOnNewReasoning = process.env.INPUT_FAIL_ON_NEW_REASONING ? normalizeReasoningThreshold(process.env.INPUT_FAIL_ON_NEW_REASONING, 'fail-on-new-reasoning') : null;
 
 await mkdir(outputDir, { recursive: true });
 const result = await scanRepository({
@@ -48,11 +51,18 @@ const result = await scanRepository({
 
 const report = result.report;
 const proven = report.charges.filter((charge) => charge.status === 'proven');
+const viableAttackPaths = Number(report.reasoning?.summary?.attackPathCounts?.VIABLE ?? 0);
+const invariantViolations = Number(report.reasoning?.summary?.invariantViolationCount ?? 0);
+const reasoningDelta = report.differential?.reasoning?.summary;
 await writeGithubOutput({
   verdict: report.verdict.label,
   score: String(report.verdict.score),
   proven_charges: String(proven.length),
   new_findings: String(report.differential?.summary?.new ?? 0),
+  viable_attack_paths: String(viableAttackPaths),
+  invariant_violations: String(invariantViolations),
+  new_viable_attack_paths: String(reasoningDelta?.newViableAttackPathCount ?? 0),
+  new_invariant_violations: String(reasoningDelta?.newInvariantViolationCount ?? 0),
   report_path: result.artifacts.report,
   sarif_path: result.artifacts.sarif,
   sbom_path: result.artifacts.sbom ?? '',
@@ -71,6 +81,8 @@ if (failOnNew && report.differential) {
   const verdict = calculateVerdict(report.differential.new, { ratio: 1, complete: true, omitted: 0, filesInspected: report.scan.coverage.filesInspected });
   if (verdictMeetsThreshold(verdict.label, failOnNew)) process.exitCode = 3;
 }
+if (!process.exitCode && failOnReasoning && reasoningMeetsSeverity(report.reasoning, failOnReasoning)) process.exitCode = 4;
+if (!process.exitCode && failOnNewReasoning && reasoningDifferentialMeetsSeverity(report.differential?.reasoning, failOnNewReasoning)) process.exitCode = 5;
 
 async function writeGithubOutput(values) {
   const filename = process.env.GITHUB_OUTPUT;
@@ -83,13 +95,20 @@ async function writeStepSummary(report, artifacts) {
   const filename = process.env.GITHUB_STEP_SUMMARY;
   if (!filename) return;
   const counts = report.verdict.severityCounts;
+  const reasoning = report.reasoning?.summary;
+  const delta = report.differential?.reasoning?.summary;
   const markdown = `## ⚖ RepoTrial: ${report.verdict.label}\n\n` +
     `| Metric | Result |\n|---|---:|\n` +
     `| Risk score | ${report.verdict.score}/100 |\n` +
     `| Critical | ${counts.critical} |\n` +
     `| High | ${counts.high} |\n` +
     `| Coverage | ${Math.round(report.scan.coverage.ratio * 100)}% |\n` +
+    `| Viable attack paths | ${reasoning?.attackPathCounts?.VIABLE ?? 0} |\n` +
+    `| Invariant violations | ${reasoning?.invariantViolationCount ?? 0} |\n` +
+    `| Explicit negative evidence | ${reasoning?.negativeEvidenceCount ?? 0} |\n` +
     `| New findings | ${report.differential?.summary?.new ?? 'not compared'} |\n` +
+    `| New viable attack paths | ${delta?.newViableAttackPathCount ?? 'not compared'} |\n` +
+    `| New invariant violations | ${delta?.newInvariantViolationCount ?? 'not compared'} |\n` +
     `| Runtime sandbox | ${report.runtime.status} |\n` +
     `| Dependencies | ${report.supplyChain.componentCount} |\n` +
     `| Vulnerabilities | ${report.supplyChain.vulnerabilityCount} |\n` +
