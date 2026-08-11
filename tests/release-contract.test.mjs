@@ -18,11 +18,11 @@ test('RepoTrial 0.5 package metadata points at the canonical Nolane-x repository
   assert.equal(pkg.bugs.url, 'https://github.com/Nolane-x/repotrial/issues');
 });
 
-test('report schema requires and references the evidence reasoning contract', async () => {
+test('report schema references the evidence reasoning contract while preserving report v2 compatibility', async () => {
   const reportSchema = await json('schemas/report.schema.json');
   const reasoningSchema = await json('schemas/reasoning.schema.json');
 
-  assert.ok(reportSchema.required.includes('reasoning'));
+  assert.equal(reportSchema.required.includes('reasoning'), false);
   assert.equal(reportSchema.properties.reasoning.$ref, './reasoning.schema.json');
   assert.equal(reasoningSchema.properties.schemaVersion.const, 'repotrial.reasoning.v1');
   assert.equal(reasoningSchema.required.includes('graph'), true);
