@@ -23,6 +23,7 @@ export function renderHtmlReport(report) {
     ? report.scan.omissions.slice(0, 50).map((item) => `<li><code>${escapeHtml(item.path)}</code><span>${escapeHtml(item.reason)}</span></li>`).join('')
     : '<li><strong>Complete</strong><span>No inspectable-scope omission was recorded.</span></li>';
   const panels = [
+    renderReasoningPanel(report.reasoning),
     renderForgeOsPanel(report.forgeos),
     renderRuntimePanel(report.runtime),
     renderSupplyPanel(report.supplyChain),
@@ -68,12 +69,32 @@ export function renderHtmlReport(report) {
       ${panels}
     </aside>
   </div>
-  <div class="legal">RepoTrial combines bounded static analysis, optional isolated runtime detonation, supply-chain evidence, differential analysis, and optional ForgeOS enrichment. A TRUSTED verdict is not a security certification, and a charge is not proof of exploitation.</div>
+  <div class="legal">RepoTrial combines bounded static analysis, optional isolated runtime detonation, supply-chain evidence, differential analysis, evidence reasoning, and optional ForgeOS enrichment. A TRUSTED verdict is not a security certification, and an attack path is an evidence-backed model rather than proof of exploitation.</div>
   <footer class="footer"><span>Receipt SHA-256: <code>${escapeHtml(report.receipt.sha256)}</code></span><span>Schema ${escapeHtml(report.schemaVersion)}</span></footer>
 </main>
 <script type="application/json" id="repotrial-report">${rawJson}</script>
 </body>
 </html>\n`;
+}
+
+function renderReasoningPanel(reasoning = {}) {
+  if (!reasoning?.schemaVersion) {
+    return `<section class="panel"><div class="panel-head"><h2>Evidence Reasoning</h2></div><div class="bridge"><b>not available</b><span>No reasoning graph was attached to this report.</span></div></section>`;
+  }
+  const hypotheses = Array.isArray(reasoning.hypotheses) ? reasoning.hypotheses : [];
+  const paths = Array.isArray(reasoning.attackPaths) ? reasoning.attackPaths : [];
+  const viable = paths.filter((path) => path.viability === 'VIABLE');
+  const partial = paths.filter((path) => path.viability === 'PARTIAL');
+  const top = hypotheses
+    .filter((item) => item.state !== 'UNTESTED')
+    .slice(0, 5)
+    .map((item) => `<li><strong>${escapeHtml(item.id)}</strong><span>${escapeHtml(item.state)} · confidence ${escapeHtml(item.confidence)}</span></li>`)
+    .join('');
+  const topRemediation = reasoning.remediation?.candidates?.[0];
+  const remediation = topRemediation
+    ? `<li><strong>Top counterfactual</strong><span>${escapeHtml(topRemediation.ruleId)} · eliminates ${escapeHtml(topRemediation.attackPathsEliminated)} attack path(s)</span></li>`
+    : '<li><strong>Top counterfactual</strong><span>No proven charge changes a modeled path.</span></li>';
+  return `<section class="panel"><div class="panel-head"><h2>Evidence Reasoning</h2><span class="count">${escapeHtml(reasoning.schemaVersion)}</span></div><div class="bridge"><b>${viable.length} VIABLE attack paths</b><span>${partial.length} partial · ${escapeHtml(reasoning.summary?.capabilityCount ?? 0)} normalized capabilities</span></div><ul class="list">${top || '<li><strong>No active hypothesis</strong><span>No modeled claim is currently supported.</span></li>'}${remediation}</ul></section>`;
 }
 
 function renderRuntimePanel(runtime = {}) {
