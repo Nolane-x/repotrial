@@ -7,11 +7,22 @@ import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { compareReports, loadBaselineFromGit } from '../src/core/diff.mjs';
 import { scanRepository } from '../src/core/analyze.mjs';
+import { reasonAboutEvidence } from '../src/reasoning/engine.mjs';
 
 const exec = promisify(execFile);
 
 function report(charges) { return { schemaVersion: 'repotrial.report.v1', charges }; }
-function charge(ruleId, fingerprint, severity = 'high') { return { ruleId, severity, status: 'proven', evidence: fingerprint ? [{ fingerprint }] : [], rationale: ruleId }; }
+function charge(ruleId, fingerprint, severity = 'high') { return { ruleId, severity, status: 'proven', evidence: fingerprint ? [{ fingerprint, stableFingerprint: fingerprint }] : [], rationale: ruleId, title: ruleId, remediation: `remediate ${ruleId}`, confidence: 'high', source: 'repotrial' }; }
+
+function reasonedReport(charges, safeguards = []) {
+  const coverage = { ratio: 1, complete: true };
+  return {
+    schemaVersion: 'repotrial.report.v2',
+    charges,
+    safeguards,
+    reasoning: reasonAboutEvidence({ charges, safeguards, coverage, providers: {} })
+  };
+}
 
 test('differential classifies new, existing, and resolved findings by stable identity', () => {
   const baseline = report([charge('a', '1'), charge('b', '2')]);
@@ -21,6 +32,49 @@ test('differential classifies new, existing, and resolved findings by stable ide
   assert.deepEqual(diff.existing.map((item) => item.ruleId), ['b']);
   assert.deepEqual(diff.resolved.map((item) => item.ruleId), ['a']);
   assert.match(diff.receipt.sha256, /^[a-f0-9]{64}$/);
+});
+
+test('reasoning differential reports capability, attack-path, hypothesis, and invariant regressions', () => {
+  const shell = charge('unrestricted-shell-capability', 'shell');
+  const baseline = reasonedReport([shell]);
+  const current = reasonedReport([
+    shell,
+    charge('secret-to-egress-path', 'secret-egress', 'critical')
+  ]);
+
+  const diff = compareReports(baseline, current);
+
+  assert.equal(diff.reasoning.schemaVersion, 'repotrial.reasoning-differential.v1');
+  assert.deepEqual(diff.reasoning.capabilities.new, ['network-egress', 'secret-access']);
+  assert.ok(diff.reasoning.attackPaths.new.some((item) => item.hypothesisId === 'credential-exfiltration' && item.viability === 'VIABLE'));
+  assert.ok(diff.reasoning.hypotheses.regressed.some((item) => item.id === 'credential-exfiltration' && item.to === 'PROVEN'));
+  assert.ok(diff.reasoning.invariants.newViolations.some((item) => item.id === 'no-secret-network-composition'));
+  assert.equal(diff.reasoning.summary.newCapabilityCount, 2);
+  assert.ok(diff.reasoning.summary.newViableAttackPathCount >= 1);
+  assert.ok(diff.reasoning.summary.newInvariantViolationCount >= 1);
+});
+
+test('reasoning differential records improvements and resolved attack paths', () => {
+  const risky = reasonedReport([
+    charge('unrestricted-shell-capability', 'shell'),
+    charge('secret-to-egress-path', 'secret-egress', 'critical')
+  ]);
+  const improved = reasonedReport([charge('unrestricted-shell-capability', 'shell')]);
+  const diff = compareReports(risky, improved);
+
+  assert.deepEqual(diff.reasoning.capabilities.resolved, ['network-egress', 'secret-access']);
+  assert.ok(diff.reasoning.attackPaths.resolved.some((item) => item.hypothesisId === 'credential-exfiltration'));
+  assert.ok(diff.reasoning.hypotheses.improved.some((item) => item.id === 'credential-exfiltration'));
+  assert.ok(diff.reasoning.invariants.resolvedViolations.some((item) => item.id === 'no-secret-network-composition'));
+});
+
+test('legacy reports without reasoning preserve the v1 finding-only differential', () => {
+  const baseline = report([charge('a', '1')]);
+  const current = report([charge('b', '2')]);
+  const diff = compareReports(baseline, current);
+
+  assert.equal('reasoning' in diff, false);
+  assert.deepEqual(diff.summary, { new: 1, existing: 0, resolved: 1 });
 });
 
 test('loads and scans a Git baseline ref without modifying the working tree', async () => {
