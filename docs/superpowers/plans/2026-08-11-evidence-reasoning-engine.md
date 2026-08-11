@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a deterministic evidence reasoning layer that converts canonical RepoTrial charges and safeguards into an evidence graph, threat hypotheses, attack paths, confidence states, and counterfactual remediation ranking.
+**Goal:** Add a deterministic evidence reasoning layer that converts canonical RepoTrial charges and safeguards into an evidence graph, threat hypotheses, attack paths, confidence states, counterfactual remediation ranking, and security invariant proof.
 
 **Architecture:** Keep all existing evidence providers unchanged. Add a pure `src/reasoning` subsystem that consumes canonical post-provider charges, then attach its result to `report.reasoning` before report hashing/provenance. Preserve current verdict behavior for compatibility.
 
@@ -22,95 +22,114 @@
 
 **Files:**
 - Create: `src/reasoning/engine.mjs`
-- Create: `test/reasoning-engine.test.mjs`
+- Create: `tests/reasoning-engine.test.mjs`
 
 **Interfaces:**
 - Consumes: `reasonAboutEvidence({ charges, safeguards, coverage, providers })`.
 - Produces: `repotrial.reasoning.v1` object containing `graph`, `hypotheses`, `attackPaths`, `remediation`, and `summary`.
 
-- [ ] **Step 1: Write failing tests** for stable output, unknown-rule preservation without capability invention, and charge-order invariance.
-- [ ] **Step 2: Run `node --test test/reasoning-engine.test.mjs`** and verify failure is caused by the missing module/export.
-- [ ] **Step 3: Implement normalized evidence nodes, capability extraction, stable SHA-256 IDs, deterministic sorting, and schema contract.**
-- [ ] **Step 4: Re-run the focused test** and verify green.
-- [ ] **Step 5: Commit** `feat(reasoning): add deterministic evidence graph core`.
+- [x] **Step 1: Write failing tests** for stable output, unknown-rule preservation without capability invention, and charge-order invariance.
+- [x] **Step 2: Verify the tests fail for the missing module/export.**
+- [x] **Step 3: Implement normalized evidence nodes, capability extraction, stable SHA-256 IDs, deterministic sorting, and schema contract.**
+- [x] **Step 4: Re-run focused and CI tests** and verify green.
 
 ### Task 2: Threat hypotheses and epistemic states
 
 **Files:**
 - Modify: `src/reasoning/engine.mjs`
-- Modify: `test/reasoning-engine.test.mjs`
+- Modify: `tests/reasoning-engine.test.mjs`
 
-**Interfaces:**
-- Produces built-in hypotheses: `credential-exfiltration`, `arbitrary-code-execution`, `unapproved-destructive-action`, `prompt-to-tool-escalation`, `supply-chain-compromise`.
-
-- [ ] **Step 1: Add failing tests** proving complete credential exfiltration becomes `PROVEN`, incomplete evidence does not, and human approval contradicts destructive-action escalation.
-- [ ] **Step 2: Run focused tests** and observe expected assertion failures.
-- [ ] **Step 3: Implement deterministic hypothesis evaluation** with required capabilities, support evidence, missing capabilities, contradictions, severity, and numeric confidence `[0,1]`.
-- [ ] **Step 4: Run focused tests** and verify green.
-- [ ] **Step 5: Commit** `feat(reasoning): evaluate threat hypotheses`.
+- [x] Implement built-in hypotheses for credential exfiltration, arbitrary code execution, destructive action, prompt-to-tool escalation, and supply-chain compromise.
+- [x] Preserve `UNKNOWN` instead of inventing absence.
+- [x] Model safeguard contradictions explicitly.
 
 ### Task 3: Attack paths and counterfactual remediation
 
 **Files:**
 - Modify: `src/reasoning/engine.mjs`
-- Modify: `test/reasoning-engine.test.mjs`
+- Modify: `tests/reasoning-engine.test.mjs`
 
-**Interfaces:**
-- Produces ordered `attackPaths[]` with `VIABLE|PARTIAL|BLOCKED` viability.
-- Produces `remediation.candidates[]` ranked by paths eliminated, hypothesis downgrades, severity, then stable rule ID.
-
-- [ ] **Step 1: Add failing tests** for multi-stage attack paths and a counterfactual where removing network-egress evidence eliminates more paths than removing an unrelated finding.
-- [ ] **Step 2: Run focused tests** and verify red.
-- [ ] **Step 3: Implement path construction and no-recursion counterfactual simulation.**
-- [ ] **Step 4: Run focused tests** and verify green.
-- [ ] **Step 5: Commit** `feat(reasoning): add attack paths and causal remediation ranking`.
+- [x] Build deterministic `VIABLE|PARTIAL|BLOCKED` attack paths.
+- [x] Rank counterfactual remediation by paths eliminated and high-impact hypotheses downgraded.
+- [x] Verify charge-order determinism.
 
 ### Task 4: Integrate reasoning into scan reports and public API
 
 **Files:**
 - Modify: `src/core/analyze.mjs`
 - Modify: `src/index.mjs`
-- Create: `test/reasoning-integration.test.mjs`
+- Create: `tests/reasoning-integration.test.mjs`
 
-**Interfaces:**
-- `scanRepository()` attaches `reasoning` before redaction/receipt hashing.
-- Package root exports `reasonAboutEvidence`.
-
-- [ ] **Step 1: Add failing integration/API tests** proving `reasoning` is present and existing verdict calculation remains unchanged for equivalent charges.
-- [ ] **Step 2: Run focused tests** and verify red.
-- [ ] **Step 3: Wire the pure engine after canonical charge assembly and export it.**
-- [ ] **Step 4: Run focused tests and full `npm test`.**
-- [ ] **Step 5: Commit** `feat: integrate evidence reasoning into RepoTrial reports`.
+- [x] Attach reasoning before report receipt hashing.
+- [x] Export `reasonAboutEvidence` from package root.
+- [x] Render an offline Evidence Reasoning panel.
+- [x] Preserve legacy verdict semantics.
 
 ### Task 5: Schema/docs/version hygiene
 
 **Files:**
-- Modify: `README.md`
 - Modify: `docs/architecture.md`
+- Create: `docs/evidence-reasoning.md`
 - Modify: `package.json`
+- Modify: `package-lock.json`
+- Create: `schemas/reasoning.schema.json`
 
-**Interfaces:**
-- Document `report.reasoning` and its epistemic-state semantics.
-- Correct repository metadata to `Nolane-x/repotrial`.
-- Move package version to `0.5.0`; production code must not introduce a second independent version constant for reasoning.
-
-- [ ] **Step 1: Update architecture and README** with the new reasoning pipeline and explicit non-certification language.
-- [ ] **Step 2: Correct package repository/homepage/bugs metadata and bump version to `0.5.0`.**
-- [ ] **Step 3: Run `npm run check`, `npm test`, `npm run test:coverage`, and `npm pack --dry-run`.**
-- [ ] **Step 4: Commit** `docs: document RepoTrial 0.5 evidence reasoning`.
+- [x] Publish the reasoning schema and documentation.
+- [x] Correct package metadata to `Nolane-x/repotrial` and move to `0.5.0`.
+- [x] Remove the independent hard-coded package version from scan/SARIF generation.
+- [x] Preserve `repotrial.report.v2` compatibility by keeping the additive `reasoning` property optional in the v2 schema.
+- [x] Stabilize evidence identity across presentation/severity changes when the stable evidence anchor is unchanged.
 
 ### Task 6: GitHub verification and review gate
 
-**Files:** none unless CI exposes a defect.
+- [x] Open draft PR `#1` from `feat/evidence-reasoning-engine-v1` to `main`.
+- [x] Inspect the complete PR diff for provider/verdict regressions.
+- [x] Use GitHub Actions Node 22, Node 24, package, coverage, fixture scan, and Docker gates.
+- [x] Fix concrete review findings with test-first patches.
+- [ ] Run the final verification gate after invariant proof lands.
 
-- [ ] **Step 1: Open a PR from `feat/evidence-reasoning-engine-v1` to `main`.**
-- [ ] **Step 2: Inspect the PR diff for unintended provider/verdict changes.**
-- [ ] **Step 3: Inspect available GitHub Actions checks/logs.**
-- [ ] **Step 4: Fix any concrete failures with test-first patches.**
-- [ ] **Step 5: Leave the PR unmerged unless verification is green and the diff matches this design.**
+### Task 7: Security invariant proof engine
+
+**Files:**
+- Create: `src/reasoning/invariants.mjs`
+- Create: `tests/reasoning-invariants.test.mjs`
+- Modify: `src/reasoning/engine.mjs`
+- Modify: `src/index.mjs`
+- Modify: `schemas/reasoning.schema.json`
+
+**Interfaces:**
+- Built-in and caller-supplied declarative invariants.
+- States: `VIOLATED`, `SATISFIED`, `UNKNOWN`, `NOT_APPLICABLE`.
+- Forbidden conjunctions may only become `SATISFIED` when explicit negative evidence refutes a missing capability; simple non-observation remains `UNKNOWN`.
+- Implication invariants may become `SATISFIED` when their antecedent is observed and the required safeguard is explicitly present.
+
+- [ ] **Step 1: Write failing tests** for destructive-action approval, secret+network forbidden composition, non-observation staying UNKNOWN, and explicit negative evidence producing SATISFIED.
+- [ ] **Step 2: Implement pure declarative invariant evaluation.**
+- [ ] **Step 3: Integrate invariant results into reasoning and public API.**
+- [ ] **Step 4: Verify deterministic behavior and schema contract.**
+
+### Task 8: Explicit negative evidence model
+
+**Files:**
+- Create: `src/reasoning/negative-evidence.mjs`
+- Modify: `src/reasoning/engine.mjs`
+- Modify: `schemas/reasoning.schema.json`
+- Modify: `docs/evidence-reasoning.md`
+
+**Interfaces:**
+- Accept explicit bounded negative-evidence claims from trusted/acquisition providers; never infer them from an absent finding.
+- Negative evidence identifies a capability, source, method, scope, confidence, and stable ID.
+- Hypotheses become `REFUTED` only when every alternative capability for a missing required stage is explicitly absent.
+- Evidence graph represents negative evidence and refutation without deleting positive evidence.
+
+- [ ] **Step 1: Write failing tests** for explicit capability absence and hypothesis refutation.
+- [ ] **Step 2: Normalize negative evidence deterministically and bind it into graph identity.**
+- [ ] **Step 3: Feed negative evidence into hypothesis and invariant evaluation.**
+- [ ] **Step 4: Verify no provider absence is converted into negative evidence.**
 
 ## Self-review
 
-- Spec coverage: graph, hypotheses, attack paths, epistemic states, counterfactual remediation, integration, compatibility, docs, and verification all have explicit tasks.
-- Placeholder scan: no deferred implementation requirements are required for v1.
-- Type consistency: a single public function `reasonAboutEvidence(input)` is used across unit tests, integration, and package export.
+- Spec coverage includes graph, hypotheses, attack paths, epistemic states, counterfactual remediation, explicit negative evidence, invariant proof, integration, compatibility, docs, and verification.
+- No LLM/cloud dependency is introduced.
+- Reasoning remains pure and zero-dependency.
+- Type consistency: `reasonAboutEvidence(input)` remains the primary public composition API; lower-level invariant and negative-evidence helpers are independently testable.
