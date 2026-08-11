@@ -465,6 +465,9 @@ function capabilitiesForCharge(charge) {
   if (id === 'self-certified-completion') return ['verification-bypass'];
   if (id === 'runtime-network-attempt') return ['network-egress'];
   if (id === 'runtime-filesystem-mutation') return ['filesystem-write'];
+  if (id === 'adaptive-secret-egress-observed') return ['network-egress', 'secret-access'];
+  if (id === 'adaptive-network-trigger-observed') return ['network-egress'];
+  if (id === 'adaptive-sentinel-destruction-observed') return ['destructive-action', 'filesystem-write'];
   if ((id.startsWith('known-vulnerable-dependency:') || id.startsWith('container-vulnerability:'))
     && ['high', 'critical'].includes(normalizedSeverity(charge.severity))) return ['supply-chain-exposure'];
   return [];
