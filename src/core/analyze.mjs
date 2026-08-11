@@ -21,7 +21,7 @@ import { signStatement } from '../integrity/sign.mjs';
 import { signWithCosign } from '../integrity/cosign.mjs';
 import { reasonAboutEvidence } from '../reasoning/engine.mjs';
 
-const VERSION = '0.4.2';
+const PACKAGE_VERSION = JSON.parse(await readFile(new URL('../../package.json', import.meta.url), 'utf8')).version;
 
 export async function scanRepository(options = {}) {
   const root = path.resolve(options.root ?? process.cwd());
@@ -122,7 +122,7 @@ export async function scanRepository(options = {}) {
     atomicWrite(artifacts.report, renderHtmlReport(report)),
     atomicWrite(artifacts.badge, renderBadge(verdict)),
     atomicWrite(artifacts.forgeosManifest, `${JSON.stringify(forgeManifest, null, 2)}\n`),
-    atomicWrite(artifacts.sarif, `${JSON.stringify(buildSarifReport(report, { version: VERSION }), null, 2)}\n`),
+    atomicWrite(artifacts.sarif, `${JSON.stringify(buildSarifReport(report, { version: PACKAGE_VERSION }), null, 2)}\n`),
     atomicWrite(artifacts.runtime, `${JSON.stringify(runtime, null, 2)}\n`),
     atomicWrite(artifacts.supplyChain, `${JSON.stringify(supplyChain, null, 2)}\n`)
   ];
