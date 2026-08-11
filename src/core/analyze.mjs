@@ -19,6 +19,7 @@ import { analyzeSupplyChain } from '../supply/analyze.mjs';
 import { buildArtifactProof, buildProvenance } from '../integrity/provenance.mjs';
 import { signStatement } from '../integrity/sign.mjs';
 import { signWithCosign } from '../integrity/cosign.mjs';
+import { reasonAboutEvidence } from '../reasoning/engine.mjs';
 
 const VERSION = '0.4.2';
 
@@ -55,6 +56,16 @@ export async function scanRepository(options = {}) {
     ...supplyChainCharges(supplyChain, snapshot)
   ];
   const verdict = calculateVerdict(charges, snapshot.coverage);
+  const reasoning = reasonAboutEvidence({
+    charges,
+    safeguards: local.safeguards,
+    coverage: snapshot.coverage,
+    providers: {
+      forgeos: { status: forgeos.status, mode: forgeos.mode },
+      runtime: { status: runtime.status, provider: runtime.provider },
+      supplyChain: { status: supplyChain.status, mode: supplyChain.mode }
+    }
+  });
 
   const draft = {
     schemaVersion: 'repotrial.report.v2',
@@ -70,6 +81,7 @@ export async function scanRepository(options = {}) {
     verdict,
     charges,
     safeguards: local.safeguards,
+    reasoning,
     forgeos,
     runtime,
     supplyChain: supplySummary(supplyChain),
