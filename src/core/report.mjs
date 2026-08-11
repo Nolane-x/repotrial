@@ -69,7 +69,7 @@ export function renderHtmlReport(report) {
       ${panels}
     </aside>
   </div>
-  <div class="legal">RepoTrial combines bounded static analysis, optional isolated runtime detonation, supply-chain evidence, differential analysis, evidence reasoning, and optional ForgeOS enrichment. A TRUSTED verdict is not a security certification, and an attack path is an evidence-backed model rather than proof of exploitation.</div>
+  <div class="legal">RepoTrial combines bounded static analysis, optional isolated runtime detonation, supply-chain evidence, differential analysis, evidence reasoning, invariant proof, explicit negative evidence, and optional ForgeOS enrichment. A TRUSTED verdict is not a security certification. Attack paths are evidence-backed models rather than proof of exploitation, and a SATISFIED invariant requires explicit safeguards or explicit negative evidence where applicable; mere non-observation remains UNKNOWN.</div>
   <footer class="footer"><span>Receipt SHA-256: <code>${escapeHtml(report.receipt.sha256)}</code></span><span>Schema ${escapeHtml(report.schemaVersion)}</span></footer>
 </main>
 <script type="application/json" id="repotrial-report">${rawJson}</script>
@@ -85,6 +85,7 @@ function renderReasoningPanel(reasoning = {}) {
   const paths = Array.isArray(reasoning.attackPaths) ? reasoning.attackPaths : [];
   const viable = paths.filter((path) => path.viability === 'VIABLE');
   const partial = paths.filter((path) => path.viability === 'PARTIAL');
+  const blocked = paths.filter((path) => path.viability === 'BLOCKED');
   const top = hypotheses
     .filter((item) => item.state !== 'UNTESTED')
     .slice(0, 5)
@@ -92,9 +93,25 @@ function renderReasoningPanel(reasoning = {}) {
     .join('');
   const topRemediation = reasoning.remediation?.candidates?.[0];
   const remediation = topRemediation
-    ? `<li><strong>Top counterfactual</strong><span>${escapeHtml(topRemediation.ruleId)} · eliminates ${escapeHtml(topRemediation.attackPathsEliminated)} attack path(s)</span></li>`
-    : '<li><strong>Top counterfactual</strong><span>No proven charge changes a modeled path.</span></li>';
-  return `<section class="panel"><div class="panel-head"><h2>Evidence Reasoning</h2><span class="count">${escapeHtml(reasoning.schemaVersion)}</span></div><div class="bridge"><b>${viable.length} VIABLE attack paths</b><span>${partial.length} partial · ${escapeHtml(reasoning.summary?.capabilityCount ?? 0)} normalized capabilities</span></div><ul class="list">${top || '<li><strong>No active hypothesis</strong><span>No modeled claim is currently supported.</span></li>'}${remediation}</ul></section>`;
+    ? `<li><strong>Top counterfactual</strong><span>${escapeHtml(topRemediation.ruleId)} · eliminates ${escapeHtml(topRemediation.attackPathsEliminated)} attack path(s) · removes ${escapeHtml(topRemediation.invariantViolationsEliminated ?? 0)} invariant violation(s)</span></li>`
+    : '<li><strong>Top counterfactual</strong><span>No proven charge changes a modeled path or invariant violation.</span></li>';
+
+  const invariantResults = Array.isArray(reasoning.invariants?.results) ? reasoning.invariants.results : [];
+  const violated = invariantResults.filter((item) => item.state === 'VIOLATED');
+  const satisfied = invariantResults.filter((item) => item.state === 'SATISFIED');
+  const unknown = invariantResults.filter((item) => item.state === 'UNKNOWN');
+  const notApplicable = invariantResults.filter((item) => item.state === 'NOT_APPLICABLE');
+  const negativeEvidence = Array.isArray(reasoning.negativeEvidence) ? reasoning.negativeEvidence : [];
+  const invariantHtml = invariantResults.length
+    ? invariantResults.slice(0, 8).map((item) => `<li><strong>${escapeHtml(item.id)}</strong><span>${escapeHtml(item.state)} · ${escapeHtml(item.severity)} · ${escapeHtml(item.rationale)}</span></li>`).join('')
+    : '<li><strong>No invariant contract</strong><span>No security invariant result was attached.</span></li>';
+  const negativeHtml = negativeEvidence.length
+    ? negativeEvidence.slice(0, 5).map((item) => `<li><strong>Negative evidence · ${escapeHtml(item.capability)}</strong><span>ABSENT · ${escapeHtml(item.source)} / ${escapeHtml(item.method)} · confidence ${escapeHtml(item.confidence)}</span></li>`).join('')
+    : '<li><strong>Negative evidence</strong><span>0 explicit absence claims. Provider silence is not treated as proof of absence.</span></li>';
+
+  const reasoningPanel = `<section class="panel"><div class="panel-head"><h2>Evidence Reasoning</h2><span class="count">${escapeHtml(reasoning.schemaVersion)}</span></div><div class="bridge"><b>${viable.length} VIABLE attack paths</b><span>${partial.length} partial · ${blocked.length} blocked · ${escapeHtml(reasoning.summary?.capabilityCount ?? 0)} observed capabilities</span></div><ul class="list">${top || '<li><strong>No active hypothesis</strong><span>No modeled claim is currently supported.</span></li>'}${remediation}</ul></section>`;
+  const invariantPanel = `<section class="panel"><div class="panel-head"><h2>Invariant Proof</h2><span class="count">${escapeHtml(reasoning.invariants?.schemaVersion ?? 'not-available')}</span></div><div class="bridge"><b>${violated.length} VIOLATED invariants</b><span>${satisfied.length} satisfied · ${unknown.length} unknown · ${notApplicable.length} not applicable · ${negativeEvidence.length} negative evidence claim(s)</span></div><ul class="list">${invariantHtml}${negativeHtml}</ul></section>`;
+  return `${reasoningPanel}\n${invariantPanel}`;
 }
 
 function renderRuntimePanel(runtime = {}) {
