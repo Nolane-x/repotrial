@@ -1,4 +1,6 @@
 import { sha256, stableStringify } from '../core/hash.mjs';
+import { normalizeNegativeEvidence, explicitAbsenceForCapability } from './negative-evidence.mjs';
+import { evaluateSecurityInvariants } from './invariants.mjs';
 
 const CONFIDENCE_WEIGHT = Object.freeze({
   high: 0.96,
@@ -66,14 +68,22 @@ const HYPOTHESES = Object.freeze([
 export function reasonAboutEvidence(input = {}) {
   const normalized = normalizeInput(input);
   const core = buildReasoningCore(normalized);
-  const remediation = buildCounterfactualRemediation(normalized, core);
-  const summary = buildSummary(core, remediation);
+  const invariants = evaluateSecurityInvariants({
+    observedCapabilities: core.observedCapabilities,
+    safeguards: normalized.safeguards,
+    negativeEvidence: normalized.negativeEvidence,
+    definitions: normalized.invariants
+  });
+  const remediation = buildCounterfactualRemediation(normalized, core, invariants);
+  const summary = buildSummary(core, remediation, invariants, normalized.negativeEvidence);
 
   return {
     schemaVersion: 'repotrial.reasoning.v1',
     graph: core.graph,
+    negativeEvidence: normalized.negativeEvidence,
     hypotheses: core.hypotheses,
     attackPaths: core.attackPaths,
+    invariants,
     remediation,
     summary
   };
@@ -86,15 +96,18 @@ function normalizeInput(input) {
     ? { ratio: clamp01(Number(input.coverage.ratio ?? 0)), complete: Boolean(input.coverage.complete) }
     : { ratio: 0, complete: false };
   const providers = input.providers && typeof input.providers === 'object' ? input.providers : {};
+  const negativeEvidence = normalizeNegativeEvidence(input.negativeEvidence);
+  const invariants = Array.isArray(input.invariants) ? [...input.invariants] : [];
 
   charges.sort((a, b) => canonicalChargeKey(a).localeCompare(canonicalChargeKey(b)));
   safeguards.sort((a, b) => canonicalSafeguardKey(a).localeCompare(canonicalSafeguardKey(b)));
 
-  return { charges, safeguards, coverage, providers };
+  return { charges, safeguards, coverage, providers, negativeEvidence, invariants };
 }
 
 function buildReasoningCore(input) {
   const evidenceNodes = dedupeById(input.charges.map(buildEvidenceNode));
+  const negativeEvidenceNodes = input.negativeEvidence.map(buildNegativeEvidenceNode);
   const safeguardNodes = dedupeById(input.safeguards.map(buildSafeguardNode));
   const chargeByEvidenceId = new Map();
   for (const charge of input.charges) {
@@ -110,7 +123,7 @@ function buildReasoningCore(input) {
     if (!charge || charge.status !== 'proven') continue;
     for (const capability of capabilitiesForCharge(charge)) {
       const capabilityId = capabilityNodeId(capability);
-      capabilityNodes.set(capability, { id: capabilityId, type: 'CAPABILITY', capability });
+      capabilityNodes.set(capability, { id: capabilityId, type: 'CAPABILITY', capability, observed: true });
       const support = capabilitySupport.get(capability) ?? [];
       support.push({ evidenceId: evidenceNode.id, score: chargeConfidence(charge), direct: isDirectProof(charge) });
       capabilitySupport.set(capability, support);
@@ -118,12 +131,26 @@ function buildReasoningCore(input) {
     }
   }
 
+  for (const item of input.negativeEvidence) {
+    const capabilityId = capabilityNodeId(item.capability);
+    if (!capabilityNodes.has(item.capability)) {
+      capabilityNodes.set(item.capability, { id: capabilityId, type: 'CAPABILITY', capability: item.capability, observed: false });
+    }
+    edges.push(buildEdge(item.id, capabilityId, 'REFUTES'));
+  }
+
   for (const support of capabilitySupport.values()) {
     support.sort((a, b) => b.score - a.score || a.evidenceId.localeCompare(b.evidenceId));
   }
 
   const safeguardById = new Map(safeguardNodes.map((node) => [node.safeguardId, node]));
-  const hypotheses = HYPOTHESES.map((definition) => evaluateHypothesis(definition, capabilitySupport, safeguardById, input.coverage));
+  const hypotheses = HYPOTHESES.map((definition) => evaluateHypothesis(
+    definition,
+    capabilitySupport,
+    safeguardById,
+    input.coverage,
+    input.negativeEvidence
+  ));
   const claimNodes = hypotheses.map((item) => ({
     id: claimNodeId(item.id),
     type: 'CLAIM',
@@ -138,7 +165,7 @@ function buildReasoningCore(input) {
     for (const stage of definition.stages) {
       for (const capability of stage.anyOf) {
         if (!capabilityNodes.has(capability)) continue;
-        edges.push(buildEdge(capabilityNodeId(capability), claimId, 'ENABLES'));
+        if (capabilitySupport.has(capability)) edges.push(buildEdge(capabilityNodeId(capability), claimId, 'ENABLES'));
       }
     }
     for (const safeguardId of definition.mitigatedBy) {
@@ -149,6 +176,7 @@ function buildReasoningCore(input) {
 
   const nodes = [
     ...evidenceNodes,
+    ...negativeEvidenceNodes,
     ...safeguardNodes,
     ...[...capabilityNodes.values()],
     ...claimNodes
@@ -156,18 +184,20 @@ function buildReasoningCore(input) {
 
   const graph = {
     schemaVersion: 'repotrial.evidence-graph.v1',
-    nodes,
+    nodes: dedupeById(nodes),
     edges: dedupeById(edges).sort(compareEdges)
   };
 
   const attackPaths = buildAttackPaths(hypotheses, capabilitySupport);
-  return { graph, hypotheses, attackPaths };
+  const observedCapabilities = [...capabilitySupport.keys()].sort();
+  return { graph, hypotheses, attackPaths, observedCapabilities };
 }
 
 function buildEvidenceNode(charge) {
   return {
     id: evidenceNodeId(charge),
     type: 'EVIDENCE',
+    polarity: 'POSITIVE',
     ruleId: stringValue(charge.ruleId, 'unknown-rule'),
     title: stringValue(charge.title, stringValue(charge.ruleId, 'Unknown evidence')),
     severity: normalizedSeverity(charge.severity),
@@ -175,6 +205,20 @@ function buildEvidenceNode(charge) {
     confidence: stringValue(charge.confidence, 'low'),
     source: stringValue(charge.source, 'unknown'),
     evidenceFingerprints: evidenceFingerprints(charge)
+  };
+}
+
+function buildNegativeEvidenceNode(item) {
+  return {
+    id: item.id,
+    type: 'EVIDENCE',
+    polarity: 'NEGATIVE',
+    capability: item.capability,
+    state: item.state,
+    source: item.source,
+    method: item.method,
+    scope: item.scope,
+    confidence: item.confidence
   };
 }
 
@@ -188,12 +232,20 @@ function buildSafeguardNode(safeguard) {
   };
 }
 
-function evaluateHypothesis(definition, capabilitySupport, safeguardById, coverage) {
+function evaluateHypothesis(definition, capabilitySupport, safeguardById, coverage, negativeEvidence) {
   const evaluatedStages = definition.stages.map((stage) => {
     const candidates = stage.anyOf
       .flatMap((capability) => (capabilitySupport.get(capability) ?? []).map((support) => ({ capability, ...support })))
       .sort((a, b) => b.score - a.score || a.capability.localeCompare(b.capability) || a.evidenceId.localeCompare(b.evidenceId));
     const best = candidates[0] ?? null;
+    const negativeByCapability = stage.anyOf.map((capability) => ({
+      capability,
+      evidence: explicitAbsenceForCapability(negativeEvidence, capability)
+    }));
+    const refuted = stage.anyOf.length > 0 && negativeByCapability.every((item) => item.evidence.length > 0);
+    const selectedContradictions = best
+      ? explicitAbsenceForCapability(negativeEvidence, best.capability).map((item) => item.id)
+      : [];
     return {
       id: stage.id,
       label: stage.label,
@@ -202,24 +254,33 @@ function evaluateHypothesis(definition, capabilitySupport, safeguardById, covera
       selectedCapability: best?.capability ?? null,
       confidence: best?.score ?? 0,
       direct: best?.direct ?? false,
-      evidenceIds: [...new Set(candidates.map((item) => item.evidenceId))].sort()
+      refuted,
+      evidenceIds: [...new Set(candidates.map((item) => item.evidenceId))].sort(),
+      negativeEvidenceIds: uniqueSorted(negativeByCapability.flatMap((item) => item.evidence.map((evidence) => evidence.id))),
+      contradictionIds: uniqueSorted(selectedContradictions)
     };
   });
 
   const satisfied = evaluatedStages.filter((stage) => stage.satisfied);
   const missingStages = evaluatedStages.filter((stage) => !stage.satisfied).map((stage) => stage.id);
-  const supportingEvidenceIds = [...new Set(evaluatedStages.flatMap((stage) => stage.evidenceIds))].sort();
-  const contradictions = definition.mitigatedBy
-    .map((id) => safeguardById.get(id))
-    .filter(Boolean)
-    .map((node) => node.id)
-    .sort();
+  const refutedStages = evaluatedStages.filter((stage) => !stage.satisfied && stage.refuted).map((stage) => stage.id);
+  const supportingEvidenceIds = uniqueSorted(evaluatedStages.flatMap((stage) => stage.evidenceIds));
+  const refutingEvidenceIds = uniqueSorted(evaluatedStages.flatMap((stage) => stage.negativeEvidenceIds));
+  const contradictions = uniqueSorted([
+    ...definition.mitigatedBy
+      .map((id) => safeguardById.get(id))
+      .filter(Boolean)
+      .map((node) => node.id),
+    ...evaluatedStages.flatMap((stage) => stage.contradictionIds)
+  ]);
 
   let state;
   if (missingStages.length === 0) {
     state = evaluatedStages.every((stage) => stage.direct) ? 'PROVEN' : 'SUPPORTED';
     if (contradictions.length) state = 'CONTRADICTED';
-  } else if (satisfied.length === 0 && coverage.ratio === 0) {
+  } else if (refutedStages.length > 0) {
+    state = 'REFUTED';
+  } else if (satisfied.length === 0 && coverage.ratio === 0 && negativeEvidence.length === 0) {
     state = 'UNTESTED';
   } else {
     state = 'UNKNOWN';
@@ -232,6 +293,13 @@ function evaluateHypothesis(definition, capabilitySupport, safeguardById, covera
   const coverageFactor = 0.7 + (0.3 * coverage.ratio);
   let confidence = meanSupport * supportFraction * coverageFactor;
   if (state === 'CONTRADICTED') confidence *= 0.55;
+  if (state === 'REFUTED') {
+    const refutingScores = refutedStages.flatMap((stageId) => {
+      const stage = evaluatedStages.find((item) => item.id === stageId);
+      return stage?.anyOf.flatMap((capability) => explicitAbsenceForCapability(negativeEvidence, capability).map((item) => item.confidence)) ?? [];
+    });
+    confidence = refutingScores.length ? Math.min(...refutingScores) : 0;
+  }
   confidence = round3(clamp01(confidence));
 
   return {
@@ -242,7 +310,9 @@ function evaluateHypothesis(definition, capabilitySupport, safeguardById, covera
     confidence,
     requiredStages: evaluatedStages.map((stage) => ({ id: stage.id, anyOf: stage.anyOf })),
     supportingEvidenceIds,
+    refutingEvidenceIds,
     missingStages,
+    refutedStages,
     contradictions
   };
 }
@@ -257,7 +327,7 @@ function buildAttackPaths(hypotheses, capabilitySupport) {
     if (definition.stages.length < 2 && !directHighImpact) continue;
 
     const stages = definition.stages.map((stage) => {
-      const evidenceIds = [...new Set(stage.anyOf.flatMap((capability) => (capabilitySupport.get(capability) ?? []).map((item) => item.evidenceId)))].sort();
+      const evidenceIds = uniqueSorted(stage.anyOf.flatMap((capability) => (capabilitySupport.get(capability) ?? []).map((item) => item.evidenceId)));
       return {
         id: stage.id,
         label: stage.label,
@@ -281,7 +351,9 @@ function buildAttackPaths(hypotheses, capabilitySupport) {
       confidence: hypothesis.confidence,
       stages,
       supportingEvidenceIds: hypothesis.supportingEvidenceIds,
+      refutingEvidenceIds: hypothesis.refutingEvidenceIds,
       missingStages: hypothesis.missingStages,
+      refutedStages: hypothesis.refutedStages,
       contradictions: hypothesis.contradictions
     });
   }
@@ -289,11 +361,12 @@ function buildAttackPaths(hypotheses, capabilitySupport) {
   return paths.sort((a, b) => a.hypothesisId.localeCompare(b.hypothesisId) || a.id.localeCompare(b.id));
 }
 
-function buildCounterfactualRemediation(input, current) {
+function buildCounterfactualRemediation(input, current, currentInvariants) {
   const currentViable = new Map(current.attackPaths.filter((path) => path.viability === 'VIABLE').map((path) => [path.hypothesisId, path]));
   const currentHighImpact = new Map(current.hypotheses
     .filter((item) => ['high', 'critical'].includes(item.severity) && ['PROVEN', 'SUPPORTED'].includes(item.state))
     .map((item) => [item.id, item]));
+  const currentViolations = new Set(currentInvariants.results.filter((item) => item.state === 'VIOLATED').map((item) => item.id));
   const candidates = [];
   const seenEvidenceIds = new Set();
 
@@ -308,13 +381,21 @@ function buildCounterfactualRemediation(input, current) {
       charges: input.charges.filter((item) => evidenceNodeId(item) !== evidenceId)
     };
     const simulated = buildReasoningCore(simulatedInput);
+    const simulatedInvariants = evaluateSecurityInvariants({
+      observedCapabilities: simulated.observedCapabilities,
+      safeguards: input.safeguards,
+      negativeEvidence: input.negativeEvidence,
+      definitions: input.invariants
+    });
     const simulatedViable = new Set(simulated.attackPaths.filter((path) => path.viability === 'VIABLE').map((path) => path.hypothesisId));
     const simulatedHighImpact = new Set(simulated.hypotheses
       .filter((item) => ['high', 'critical'].includes(item.severity) && ['PROVEN', 'SUPPORTED'].includes(item.state))
       .map((item) => item.id));
+    const simulatedViolations = new Set(simulatedInvariants.results.filter((item) => item.state === 'VIOLATED').map((item) => item.id));
 
     const eliminated = [...currentViable.keys()].filter((id) => !simulatedViable.has(id));
     const downgraded = [...currentHighImpact.keys()].filter((id) => !simulatedHighImpact.has(id));
+    const invariantViolationsEliminated = [...currentViolations].filter((id) => !simulatedViolations.has(id));
 
     candidates.push({
       evidenceId,
@@ -322,14 +403,17 @@ function buildCounterfactualRemediation(input, current) {
       title: stringValue(charge.title, stringValue(charge.ruleId, 'Unknown evidence')),
       severity: normalizedSeverity(charge.severity),
       attackPathsEliminated: eliminated.length,
+      invariantViolationsEliminated: invariantViolationsEliminated.length,
       hypothesesDowngraded: downgraded.length,
-      affectedHypothesisIds: [...new Set([...eliminated, ...downgraded])].sort(),
+      affectedHypothesisIds: uniqueSorted([...eliminated, ...downgraded]),
+      affectedInvariantIds: uniqueSorted(invariantViolationsEliminated),
       remediation: stringValue(charge.remediation, '')
     });
   }
 
   candidates.sort((a, b) =>
     b.attackPathsEliminated - a.attackPathsEliminated
+    || b.invariantViolationsEliminated - a.invariantViolationsEliminated
     || b.hypothesesDowngraded - a.hypothesesDowngraded
     || SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity]
     || a.ruleId.localeCompare(b.ruleId)
@@ -343,7 +427,7 @@ function buildCounterfactualRemediation(input, current) {
   };
 }
 
-function buildSummary(core, remediation) {
+function buildSummary(core, remediation, invariants, negativeEvidence) {
   const stateCounts = Object.fromEntries(['PROVEN', 'SUPPORTED', 'CONTRADICTED', 'REFUTED', 'UNKNOWN', 'UNTESTED'].map((state) => [state, 0]));
   for (const hypothesis of core.hypotheses) stateCounts[hypothesis.state] = (stateCounts[hypothesis.state] ?? 0) + 1;
   const pathCounts = { VIABLE: 0, PARTIAL: 0, BLOCKED: 0 };
@@ -355,10 +439,14 @@ function buildSummary(core, remediation) {
   const confidenceFloor = active.length ? Math.min(...active.map((item) => item.confidence)) : 0;
 
   return {
-    evidenceNodeCount: core.graph.nodes.filter((node) => node.type === 'EVIDENCE').length,
-    capabilityCount: core.graph.nodes.filter((node) => node.type === 'CAPABILITY').length,
+    evidenceNodeCount: core.graph.nodes.filter((node) => node.type === 'EVIDENCE' && node.polarity !== 'NEGATIVE').length,
+    negativeEvidenceCount: negativeEvidence.length,
+    capabilityCount: core.observedCapabilities.length,
     hypothesisCounts: stateCounts,
     attackPathCounts: pathCounts,
+    invariantCounts: invariants.summary.stateCounts,
+    invariantViolationCount: invariants.summary.violationCount,
+    maximumInvariantViolationSeverity: invariants.summary.maximumViolationSeverity,
     maximumReasoningSeverity,
     confidenceFloor: round3(confidenceFloor),
     topRemediationEvidenceIds: remediation.candidates.slice(0, 5).map((item) => item.evidenceId)
@@ -469,6 +557,10 @@ function dedupeById(items) {
   const map = new Map();
   for (const item of items) if (!map.has(item.id)) map.set(item.id, item);
   return [...map.values()];
+}
+
+function uniqueSorted(items) {
+  return [...new Set(items)].sort();
 }
 
 function compareNodes(a, b) {
