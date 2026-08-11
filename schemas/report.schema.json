@@ -3,7 +3,7 @@
   "$id": "https://repotrial.dev/schemas/report.schema.json",
   "title": "RepoTrial Report v2",
   "type": "object",
-  "required": ["schemaVersion", "scan", "verdict", "charges", "safeguards", "reasoning", "forgeos", "runtime", "supplyChain", "integrity", "receipt"],
+  "required": ["schemaVersion", "scan", "verdict", "charges", "safeguards", "forgeos", "runtime", "supplyChain", "integrity", "receipt"],
   "properties": {
     "schemaVersion": { "const": "repotrial.report.v2" },
     "scan": {
