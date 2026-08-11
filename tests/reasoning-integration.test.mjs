@@ -40,15 +40,20 @@ test('scan report embeds deterministic reasoning without changing verdict semant
 
     assert.equal(report.reasoning.schemaVersion, 'repotrial.reasoning.v1');
     assert.equal(report.reasoning.hypotheses.find((item) => item.id === 'credential-exfiltration').state, 'PROVEN');
+    assert.equal(report.reasoning.invariants.schemaVersion, 'repotrial.invariants.v1');
+    assert.equal(report.reasoning.invariants.results.find((item) => item.id === 'no-secret-network-composition').state, 'VIOLATED');
+    assert.deepEqual(report.reasoning.negativeEvidence, []);
     assert.deepEqual(report.verdict, calculateVerdict(report.charges, report.scan.coverage));
   });
 });
 
-test('package root exports the pure evidence reasoning engine', () => {
+test('package root exports the reasoning, invariant, and negative-evidence APIs', () => {
   assert.equal(typeof api.reasonAboutEvidence, 'function');
+  assert.equal(typeof api.evaluateSecurityInvariants, 'function');
+  assert.equal(typeof api.normalizeNegativeEvidence, 'function');
 });
 
-test('portable HTML report renders the evidence reasoning summary', async () => {
+test('portable HTML report renders attack paths and invariant proof', async () => {
   await withFixture(async ({ root, outputDir }) => {
     const { artifacts } = await api.scanRepository({
       root,
@@ -64,5 +69,9 @@ test('portable HTML report renders the evidence reasoning summary', async () => 
     assert.match(html, /Evidence Reasoning/);
     assert.match(html, /credential-exfiltration/);
     assert.match(html, /VIABLE/);
+    assert.match(html, /Invariant Proof/);
+    assert.match(html, /no-secret-network-composition/);
+    assert.match(html, /VIOLATED/);
+    assert.match(html, /negative evidence/i);
   });
 });
