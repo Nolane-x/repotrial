@@ -1,7 +1,7 @@
 {
   "name": "repotrial",
-  "version": "0.4.2",
-  "description": "Evidence-backed static, runtime, supply-chain, differential, provenance, and ForgeOS analysis for AI-agent repositories.",
+  "version": "0.5.0",
+  "description": "Evidence-backed static, runtime, supply-chain, differential, provenance, and reasoning analysis for AI-agent repositories.",
   "type": "module",
   "bin": {
     "repotrial": "./bin/repotrial.mjs"
@@ -18,6 +18,7 @@
     "docs/architecture.md",
     "docs/attestations.md",
     "docs/differential-analysis.md",
+    "docs/evidence-reasoning.md",
     "docs/forgeos-bridge.md",
     "docs/runtime-sandbox.md",
     "docs/supply-chain.md",
@@ -47,6 +48,9 @@
     "security",
     "static-analysis",
     "runtime-sandbox",
+    "evidence-graph",
+    "attack-path",
+    "threat-modeling",
     "sbom",
     "cyclonedx",
     "osv",
@@ -59,11 +63,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/casioreview20-glitch/repotrial.git"
+    "url": "git+https://github.com/Nolane-x/repotrial.git"
   },
-  "homepage": "https://github.com/casioreview20-glitch/repotrial#readme",
+  "homepage": "https://github.com/Nolane-x/repotrial#readme",
   "bugs": {
-    "url": "https://github.com/casioreview20-glitch/repotrial/issues"
+    "url": "https://github.com/Nolane-x/repotrial/issues"
   },
   "publishConfig": {
     "access": "public",
