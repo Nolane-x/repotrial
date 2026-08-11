@@ -2,7 +2,7 @@ name: RepoTrial
 branding:
   icon: shield
   color: red
-description: Evidence-backed static, runtime, supply-chain, differential, and ForgeOS security analysis for AI-agent repositories.
+description: Evidence-backed static, runtime, supply-chain, differential, reasoning, and ForgeOS security analysis for AI-agent repositories.
 inputs:
   path:
     description: Repository directory to scan.
@@ -22,6 +22,14 @@ inputs:
     default: reckless
   fail-on-new:
     description: Optional cautious, reckless, or dangerous threshold applied only to new findings.
+    required: false
+    default: ''
+  fail-on-reasoning:
+    description: Optional info, low, medium, high, or critical threshold for active reasoning hypotheses or invariant violations.
+    required: false
+    default: ''
+  fail-on-new-reasoning:
+    description: Optional severity threshold applied only to newly introduced viable attack paths, hypothesis regressions, or invariant violations.
     required: false
     default: ''
   baseline-ref:
@@ -86,6 +94,18 @@ outputs:
   new-findings:
     description: Number of findings introduced since the baseline.
     value: ${{ steps.scan.outputs.new_findings }}
+  viable-attack-paths:
+    description: Number of currently viable evidence-reasoning attack paths.
+    value: ${{ steps.scan.outputs.viable_attack_paths }}
+  invariant-violations:
+    description: Number of currently violated security invariants.
+    value: ${{ steps.scan.outputs.invariant_violations }}
+  new-viable-attack-paths:
+    description: Number of newly introduced viable attack paths since the baseline.
+    value: ${{ steps.scan.outputs.new_viable_attack_paths }}
+  new-invariant-violations:
+    description: Number of newly introduced invariant violations since the baseline.
+    value: ${{ steps.scan.outputs.new_invariant_violations }}
   report-path:
     description: Portable HTML report path.
     value: ${{ steps.scan.outputs.report_path }}
@@ -132,6 +152,8 @@ runs:
         INPUT_EXCLUDE_PATHS: ${{ inputs.exclude-paths }}
         INPUT_FAIL_ON: ${{ inputs.fail-on }}
         INPUT_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
+        INPUT_FAIL_ON_REASONING: ${{ inputs.fail-on-reasoning }}
+        INPUT_FAIL_ON_NEW_REASONING: ${{ inputs.fail-on-new-reasoning }}
         INPUT_BASELINE_REF: ${{ inputs.baseline-ref }}
         INPUT_RUNTIME_MODE: ${{ inputs.runtime-mode }}
         INPUT_RUNTIME_SCRIPTS: ${{ inputs.runtime-scripts }}

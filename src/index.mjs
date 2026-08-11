@@ -7,6 +7,9 @@ export { compareReports, findingIdentity, loadBaselineFromGit, readReport } from
 export { parseStructuredConfig } from './core/structured.mjs';
 export { assertSupportedNode, supportedNode } from './core/node-version.mjs';
 export { redactSensitiveText, redactSensitiveValues } from './core/redact.mjs';
+export { reasonAboutEvidence } from './reasoning/engine.mjs';
+export { evaluateSecurityInvariants, BUILTIN_INVARIANTS } from './reasoning/invariants.mjs';
+export { normalizeNegativeEvidence, explicitAbsenceForCapability } from './reasoning/negative-evidence.mjs';
 export { buildForgeOsManifest } from './bridge/manifest.mjs';
 export { runForgeOsBridge, runForgeOsCli, normalizeForgeOsFindings, probeForgeOsCli } from './bridge/forgeos.mjs';
 export { probeRuntimeSandbox, runRuntimeAnalysis, discoverRuntimeCandidates } from './runtime/sandbox.mjs';

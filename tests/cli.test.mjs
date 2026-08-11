@@ -28,13 +28,14 @@ test('subcommand help lists all production scan controls', async () => {
   for (const option of [
     '--runtime-max-source-files', '--runtime-max-source-bytes', '--container-scanner-command',
     '--signing-passphrase-env', '--forgeos-root', '--allow-insecure-forgeos-http', '--max-total-bytes'
-  ]) assert.match(result.stdout, new RegExp(option.replace(/[.*+?^${}()|[\]\\]/g, '\$&')));
+  ]) assert.match(result.stdout, new RegExp(option.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });
 
 test('version prints package version', async () => {
   const result = await run(['version']);
+  const pkg = JSON.parse(await (await import('node:fs/promises')).readFile(path.join(root, 'package.json'), 'utf8'));
   assert.equal(result.code, 0);
-  assert.match(result.stdout, /0\.4\.2/);
+  assert.equal(result.stdout.trim(), `repotrial ${pkg.version}`);
 });
 
 test('scan excludes operator-declared fixture paths from all analysis providers', async () => {

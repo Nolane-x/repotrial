@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repotrial.dev/schemas/reasoning.schema.json",
+  "title": "RepoTrial Evidence Reasoning v1",
+  "type": "object",
+  "required": ["schemaVersion", "graph", "negativeEvidence", "hypotheses", "attackPaths", "invariants", "remediation", "summary"],
+  "properties": {
+    "schemaVersion": { "const": "repotrial.reasoning.v1" },
+    "graph": {
+      "type": "object",
+      "required": ["schemaVersion", "nodes", "edges"],
+      "properties": {
+        "schemaVersion": { "const": "repotrial.evidence-graph.v1" },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "type"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "type": { "enum": ["EVIDENCE", "SAFEGUARD", "CAPABILITY", "CLAIM"] },
+              "polarity": { "enum": ["POSITIVE", "NEGATIVE"] },
+              "observed": { "type": "boolean" }
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "from", "to", "relation"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "from": { "type": "string", "minLength": 1 },
+              "to": { "type": "string", "minLength": 1 },
+              "relation": { "enum": ["SUPPORTS", "ENABLES", "MITIGATES", "REQUIRES", "REFUTES"] }
+            }
+          }
+        }
+      }
+    },
+    "negativeEvidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "state", "capability", "source", "method", "scope", "confidenceLabel", "confidence"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^neg:[a-f0-9]{24}$" },
+          "state": { "const": "ABSENT" },
+          "capability": { "type": "string", "minLength": 1 },
+          "source": { "type": "string", "minLength": 1 },
+          "method": { "type": "string", "minLength": 1 },
+          "scope": { "type": "string", "minLength": 1 },
+          "confidenceLabel": { "type": "string", "minLength": 1 },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "hypotheses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "severity", "state", "confidence", "requiredStages", "supportingEvidenceIds", "refutingEvidenceIds", "missingStages", "refutedStages", "contradictions"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "title": { "type": "string" },
+          "severity": { "enum": ["info", "low", "medium", "high", "critical"] },
+          "state": { "enum": ["PROVEN", "SUPPORTED", "CONTRADICTED", "REFUTED", "UNKNOWN", "UNTESTED"] },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "requiredStages": { "type": "array" },
+          "supportingEvidenceIds": { "type": "array", "items": { "type": "string" } },
+          "refutingEvidenceIds": { "type": "array", "items": { "type": "string" } },
+          "missingStages": { "type": "array", "items": { "type": "string" } },
+          "refutedStages": { "type": "array", "items": { "type": "string" } },
+          "contradictions": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "attackPaths": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "hypothesisId", "severity", "viability", "confidence", "stages", "supportingEvidenceIds", "refutingEvidenceIds", "missingStages", "refutedStages", "contradictions"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "hypothesisId": { "type": "string", "minLength": 1 },
+          "severity": { "enum": ["info", "low", "medium", "high", "critical"] },
+          "viability": { "enum": ["VIABLE", "PARTIAL", "BLOCKED"] },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "stages": { "type": "array" },
+          "supportingEvidenceIds": { "type": "array", "items": { "type": "string" } },
+          "refutingEvidenceIds": { "type": "array", "items": { "type": "string" } },
+          "missingStages": { "type": "array", "items": { "type": "string" } },
+          "refutedStages": { "type": "array", "items": { "type": "string" } },
+          "contradictions": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "invariants": {
+      "type": "object",
+      "required": ["schemaVersion", "results", "summary"],
+      "properties": {
+        "schemaVersion": { "const": "repotrial.invariants.v1" },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "severity", "kind", "state", "observedCapabilities", "missingCapabilities", "safeguardIds", "missingSafeguards", "negativeEvidenceIds", "rationale"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "severity": { "enum": ["info", "low", "medium", "high", "critical"] },
+              "kind": { "enum": ["forbid-all", "require-safeguard"] },
+              "state": { "enum": ["VIOLATED", "SATISFIED", "UNKNOWN", "NOT_APPLICABLE"] }
+            }
+          }
+        },
+        "summary": {
+          "type": "object",
+          "required": ["stateCounts", "maximumViolationSeverity", "violationCount"],
+          "properties": {
+            "maximumViolationSeverity": { "enum": ["info", "low", "medium", "high", "critical"] },
+            "violationCount": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "remediation": {
+      "type": "object",
+      "required": ["schemaVersion", "model", "caveat", "candidates"],
+      "properties": {
+        "schemaVersion": { "const": "repotrial.counterfactual-remediation.v1" },
+        "model": { "const": "counterfactual-charge-removal-v1" },
+        "caveat": { "type": "string", "minLength": 1 },
+        "candidates": { "type": "array" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["evidenceNodeCount", "negativeEvidenceCount", "capabilityCount", "hypothesisCounts", "attackPathCounts", "invariantCounts", "invariantViolationCount", "maximumInvariantViolationSeverity", "maximumReasoningSeverity", "confidenceFloor", "topRemediationEvidenceIds"],
+      "properties": {
+        "evidenceNodeCount": { "type": "integer", "minimum": 0 },
+        "negativeEvidenceCount": { "type": "integer", "minimum": 0 },
+        "capabilityCount": { "type": "integer", "minimum": 0 },
+        "invariantViolationCount": { "type": "integer", "minimum": 0 },
+        "maximumInvariantViolationSeverity": { "enum": ["info", "low", "medium", "high", "critical"] },
+        "maximumReasoningSeverity": { "enum": ["info", "low", "medium", "high", "critical"] },
+        "confidenceFloor": { "type": "number", "minimum": 0, "maximum": 1 },
+        "topRemediationEvidenceIds": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

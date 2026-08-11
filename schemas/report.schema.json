@@ -41,6 +41,7 @@
     },
     "charges": { "type": "array" },
     "safeguards": { "type": "array" },
+    "reasoning": { "$ref": "./reasoning.schema.json" },
     "forgeos": { "type": "object" },
     "runtime": { "type": "object" },
     "supplyChain": { "type": "object" },

@@ -2,6 +2,18 @@
 
 All notable changes are documented here.
 
+## 0.5.0 — 2026-08-11
+
+- Added a pure deterministic Evidence Reasoning Engine that converts canonical charges and safeguards into a typed evidence graph, normalized capabilities, threat hypotheses, and ordered attack paths.
+- Added explicit epistemic states (`PROVEN`, `SUPPORTED`, `CONTRADICTED`, `REFUTED`, `UNKNOWN`, `UNTESTED`) so missing or unavailable evidence is never silently interpreted as proof of safety.
+- Added built-in threat hypotheses for credential exfiltration, arbitrary code execution, unapproved destructive action, prompt-to-tool escalation, and high-impact supply-chain compromise.
+- Added stable SHA-256-derived graph and attack-path identities and charge-order invariance tests.
+- Added counterfactual remediation ranking that recomputes the evidence model after removing each proven charge and measures attack-path elimination and high-impact hypothesis downgrade.
+- Embedded reasoning into `verdict.json`, the receipt-bound portable HTML report, and the package public API while preserving v0.4 deterministic verdict thresholds for compatibility.
+- Added `repotrial.reasoning.v1`, `repotrial.evidence-graph.v1`, and `repotrial.counterfactual-remediation.v1` contracts plus a published JSON Schema.
+- Corrected npm repository/homepage/issue metadata to `Nolane-x/repotrial` and removed the independent hard-coded SARIF package version source.
+- Retained zero npm runtime dependencies and Node.js 22.14+ support.
+
 ## 0.4.2 — 2026-07-28
 
 - Correct the release proof workflow to use the actual key pair filenames emitted by `repotrial keygen`.

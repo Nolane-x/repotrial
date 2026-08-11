@@ -12,6 +12,7 @@ import { verifyArtifactProof, verifyProvenanceBinding } from './integrity/proven
 import { verifyWithCosign } from './integrity/cosign.mjs';
 import { createReportServer } from './server.mjs';
 import { stableStringify } from './core/hash.mjs';
+import { normalizeReasoningThreshold, reasoningMeetsSeverity, reasoningDifferentialMeetsSeverity } from './reasoning/gates.mjs';
 
 const VERSION = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version;
 
@@ -42,7 +43,8 @@ async function scanCommand(args, io) {
     '--output', '--forgeos', '--forgeos-url', '--forgeos-token', '--forgeos-bin', '--forgeos-root', '--forgeos-depth',
     '--runtime', '--runtime-script', '--runtime-timeout', '--runtime-max-runs', '--runtime-max-source-files', '--runtime-max-source-bytes',
     '--supply-chain', '--osv-url', '--osv-timeout', '--container-scanner-command', '--container-scanner-args',
-    '--baseline-report', '--baseline-ref', '--fail-on', '--fail-on-new', '--signing-key', '--signing-passphrase-env', '--cosign', '--cosign-key', '--cosign-bin',
+    '--baseline-report', '--baseline-ref', '--fail-on', '--fail-on-new', '--fail-on-reasoning', '--fail-on-new-reasoning',
+    '--signing-key', '--signing-passphrase-env', '--cosign', '--cosign-key', '--cosign-bin',
     '--builder-id', '--repository-url', '--commit', '--json', '--quiet', '--include-absolute-paths',
     '--allow-insecure-forgeos-http', '--exclude', '--max-files', '--max-file-bytes', '--max-total-bytes'
   ]));
@@ -53,6 +55,8 @@ async function scanCommand(args, io) {
   const forgeDepth = enumValue(parsed.values['--forgeos-depth'] ?? 'security', ['security', 'full'], '--forgeos-depth');
   const runtimeMode = enumValue(parsed.values['--runtime'] ?? 'off', ['off', 'auto', 'sandbox'], '--runtime');
   const supplyMode = enumValue(parsed.values['--supply-chain'] ?? 'offline', ['off', 'offline', 'osv'], '--supply-chain');
+  const reasoningThreshold = parsed.values['--fail-on-reasoning'] ? normalizeReasoningThreshold(parsed.values['--fail-on-reasoning'], '--fail-on-reasoning') : null;
+  const newReasoningThreshold = parsed.values['--fail-on-new-reasoning'] ? normalizeReasoningThreshold(parsed.values['--fail-on-new-reasoning'], '--fail-on-new-reasoning') : null;
   const signingKey = parsed.values['--signing-key'];
   const passphraseEnv = parsed.values['--signing-passphrase-env'];
   if (passphraseEnv && !signingKey) throw new Error('--signing-passphrase-env requires --signing-key.');
@@ -101,6 +105,8 @@ async function scanCommand(args, io) {
     }
   });
 
+  const reasoningSummary = result.report.reasoning?.summary;
+  const reasoningDelta = result.report.differential?.reasoning?.summary;
   const summary = {
     schemaVersion: 'repotrial.cli.summary.v2',
     verdict: result.report.verdict.label, score: result.report.verdict.score,
@@ -110,6 +116,18 @@ async function scanCommand(args, io) {
     forgeosTechnique: result.report.forgeos.remediationRoute?.steps?.[0]?.techniqueId ?? null,
     runtime: result.report.runtime.status, supplyChain: result.report.supplyChain.status,
     newFindings: result.report.differential?.summary?.new ?? null,
+    viableAttackPaths: reasoningSummary?.attackPathCounts?.VIABLE ?? 0,
+    invariantViolations: reasoningSummary?.invariantViolationCount ?? 0,
+    newReasoning: reasoningDelta ? {
+      newCapabilities: reasoningDelta.newCapabilityCount,
+      resolvedCapabilities: reasoningDelta.resolvedCapabilityCount,
+      newViableAttackPaths: reasoningDelta.newViableAttackPathCount,
+      resolvedViableAttackPaths: reasoningDelta.resolvedViableAttackPathCount,
+      regressedHypotheses: reasoningDelta.regressedHypothesisCount,
+      improvedHypotheses: reasoningDelta.improvedHypothesisCount,
+      newInvariantViolations: reasoningDelta.newInvariantViolationCount,
+      resolvedInvariantViolations: reasoningDelta.resolvedInvariantViolationCount
+    } : null,
     outputDir, report: result.artifacts.report, badge: result.artifacts.badge, sarif: result.artifacts.sarif,
     sbom: result.artifacts.sbom ?? null, proof: result.artifacts.proof, provenance: result.artifacts.provenance,
     attestation: result.artifacts.attestation ?? null, sigstore: result.artifacts.sigstore ?? null, receipt: result.report.receipt.sha256
@@ -126,6 +144,8 @@ async function scanCommand(args, io) {
     const newVerdict = calculateVerdict(result.report.differential.new, { ratio: 1, complete: true, omitted: 0, filesInspected: result.report.scan.coverage.filesInspected });
     if (verdictMeetsThreshold(newVerdict.label, threshold)) return 3;
   }
+  if (reasoningThreshold && reasoningMeetsSeverity(result.report.reasoning, reasoningThreshold)) return 4;
+  if (newReasoningThreshold && reasoningDifferentialMeetsSeverity(result.report.differential?.reasoning, newReasoningThreshold)) return 5;
   return 0;
 }
 
@@ -134,7 +154,7 @@ async function diffCommand(args, io) {
   if (parsed.positionals.length !== 2) throw new Error('diff requires <baseline-verdict.json> <current-verdict.json>.');
   const result = compareReports(await readReport(parsed.positionals[0]), await readReport(parsed.positionals[1]));
   if (parsed.values['--output']) await writeFile(path.resolve(parsed.values['--output']), `${JSON.stringify(result, null, 2)}\n`, { mode: 0o644 });
-  io.log(parsed.flags.has('--json') ? JSON.stringify(result) : `${JSON.stringify(result.summary, null, 2)}\nReceipt: ${result.receipt.sha256}`);
+  io.log(parsed.flags.has('--json') ? JSON.stringify(result) : `${JSON.stringify(result.summary, null, 2)}${result.reasoning ? `\nReasoning: ${JSON.stringify(result.reasoning.summary)}` : ''}\nReceipt: ${result.receipt.sha256}`);
   return 0;
 }
 
@@ -249,15 +269,17 @@ function printHumanSummary(summary, io) {
   io.log(`  Risk score:      ${summary.score}/100`);
   io.log(`  Proven charges:  ${summary.provenCharges}`);
   io.log(`  Coverage:        ${Math.round(summary.coverage * 100)}% (${summary.filesInspected} files)`);
+  io.log(`  Reasoning:       ${summary.viableAttackPaths} viable paths, ${summary.invariantViolations} invariant violations`);
   io.log(`  Runtime:         ${summary.runtime}`);
   io.log(`  Supply chain:    ${summary.supplyChain}`);
   io.log(`  ForgeOS:         ${summary.forgeos}`);
   if (summary.newFindings !== null) io.log(`  New findings:    ${summary.newFindings}`);
+  if (summary.newReasoning) io.log(`  Reasoning delta: +${summary.newReasoning.newCapabilities} capabilities, +${summary.newReasoning.newViableAttackPaths} viable paths, +${summary.newReasoning.newInvariantViolations} invariant violations`);
   io.log(`  Report:          ${summary.report}`);
   io.log(`  Receipt:         ${summary.receipt}\n`);
 }
 function helpText() {
-  return `RepoTrial ${VERSION} — evidence-backed static, runtime, supply-chain, differential, and ForgeOS analysis
+  return `RepoTrial ${VERSION} — evidence-backed static, runtime, supply-chain, differential, reasoning, and ForgeOS analysis
 
 Usage:
   repotrial scan [path] [options]
@@ -296,6 +318,8 @@ Differential and gates:
   --baseline-ref <git-ref>          Scan a Git baseline in an isolated worktree
   --fail-on <verdict>               Exit 2 at cautious | reckless | dangerous
   --fail-on-new <verdict>           Exit 3 for newly introduced risk only
+  --fail-on-reasoning <severity>    Exit 4 for active reasoning risk at info | low | medium | high | critical
+  --fail-on-new-reasoning <severity> Exit 5 for newly introduced reasoning regressions
 
 Integrity and provenance:
   --signing-key <pem>               Sign provenance as an Ed25519 DSSE envelope
