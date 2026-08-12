@@ -1,0 +1,37 @@
+name: Export RepoTrial 0.8 exact main source
+
+on:
+  push:
+    branches:
+      - chore/export-v0.8.0-artifact
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 7a5406ae6661c9ac6e5eb5c7f7dcef34a57fc3e4
+          fetch-depth: 1
+      - name: Archive exact tracked source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '7a5406ae6661c9ac6e5eb5c7f7dcef34a57fc3e4'
+          git rev-parse HEAD > REPOTRIAL_SOURCE_COMMIT.txt
+          git rev-parse 'HEAD^{tree}' > REPOTRIAL_SOURCE_TREE.txt
+          git archive --format=tar --prefix=repotrial/ HEAD > repotrial-v0.8.0-exact-main.tar
+          sha256sum repotrial-v0.8.0-exact-main.tar > REPOTRIAL_SOURCE_ARCHIVE.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: repotrial-v0.8.0-main-7a5406ae-exact
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            repotrial-v0.8.0-exact-main.tar
+            REPOTRIAL_SOURCE_COMMIT.txt
+            REPOTRIAL_SOURCE_TREE.txt
+            REPOTRIAL_SOURCE_ARCHIVE.sha256
