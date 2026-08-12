@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repotrial.dev/schemas/threat-registry.schema.json",
+  "title": "RepoTrial Threat Registry",
+  "type": "object",
+  "required": ["schemaVersion", "definitions", "receipt"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": "repotrial.threat-registry.v1" },
+    "receipt": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "definitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "severity", "category", "stages", "mitigatedBy", "experimentHints"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$" },
+          "title": { "type": "string", "minLength": 1 },
+          "severity": { "enum": ["info", "low", "medium", "high", "critical"] },
+          "category": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$" },
+          "stages": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["id", "label", "anyOf", "order"],
+              "additionalProperties": false,
+              "properties": {
+                "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$" },
+                "label": { "type": "string", "minLength": 1 },
+                "anyOf": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$" }
+                },
+                "order": { "type": "integer", "minimum": 0 }
+              }
+            }
+          },
+          "mitigatedBy": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$" }
+          },
+          "experimentHints": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["stageId", "templateId", "strength"],
+              "additionalProperties": false,
+              "properties": {
+                "stageId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$" },
+                "templateId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$" },
+                "strength": { "enum": ["contextual", "strong", "direct"] }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
