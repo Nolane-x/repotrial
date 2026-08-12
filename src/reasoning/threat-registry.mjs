@@ -2,7 +2,7 @@ import { sha256, stableStringify } from '../core/hash.mjs';
 
 const SEVERITIES = new Set(['info', 'low', 'medium', 'high', 'critical']);
 const HINT_STRENGTHS = new Set(['contextual', 'strong', 'direct']);
-const ID_RE = /^[a-z0-9][a-z0-9-]+$/;
+const ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const BUILTIN_DEFINITIONS = [
   {
