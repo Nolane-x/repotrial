@@ -17,18 +17,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ ! -f .repotrial-review-fix-v08.patch.gz.b64 ]; then
-            echo 'No review fix patch staged; no-op.'
+          if [ ! -f .repotrial-review-fix-v08.part0 ] || [ ! -f .repotrial-review-fix-v08.part1 ]; then
+            echo 'Review fix parts are not staged; no-op.'
             exit 0
           fi
-          tr -d '\r\n' < .repotrial-review-fix-v08.patch.gz.b64 > /tmp/v08-review-fix.patch.gz.b64
+          cat .repotrial-review-fix-v08.part0 .repotrial-review-fix-v08.part1 | tr -d '\r\n' > /tmp/v08-review-fix.patch.gz.b64
           echo '9887771e7f3ad48521cfd4615363200f53657769fa0552c0993f5f4d7a40b1ce  /tmp/v08-review-fix.patch.gz.b64' | sha256sum -c -
           base64 -d /tmp/v08-review-fix.patch.gz.b64 > /tmp/v08-review-fix.patch.gz
           gzip -dc /tmp/v08-review-fix.patch.gz > /tmp/v08-review-fix.patch
           echo '9cdb043bc516f4093368937981cd32306e54a543e4060d0aff0f37ff95a55b2d  /tmp/v08-review-fix.patch' | sha256sum -c -
           git apply --check /tmp/v08-review-fix.patch
           git apply /tmp/v08-review-fix.patch
-          rm -f .repotrial-review-fix-v08.patch.gz.b64 .repotrial-review-fix-v08.trigger
+          rm -f .repotrial-review-fix-v08.part0 .repotrial-review-fix-v08.part1 .repotrial-review-fix-v08.patch.gz.b64 .repotrial-review-fix-v08.trigger
           git config user.name 'Nolane-x'
           git config user.email 'casioreview20@gmail.com'
           git add -A
