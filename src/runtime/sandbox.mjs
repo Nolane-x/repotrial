@@ -8,6 +8,7 @@ import { discoverRepository } from '../core/discover.mjs';
 import { redactSensitiveText, redactSensitiveValues } from '../core/redact.mjs';
 import { parseStructuredConfig } from '../core/structured.mjs';
 import { isAgentConfigFile } from '../core/surfaces.mjs';
+import { validateExperimentScenario } from '../experiments/templates.mjs';
 
 const LIFECYCLE = new Set(['preinstall', 'install', 'postinstall', 'prepare', 'prepublish', 'prepublishOnly']);
 const DEFAULT_TIMEOUT = 10_000;
@@ -55,30 +56,96 @@ export async function runRuntimeAnalysis(options = {}) {
       unshare: probe.unshare,
       timeoutMs: boundedInteger(options.timeoutMs, DEFAULT_TIMEOUT, 250, 120_000),
       maxOutputBytes: boundedInteger(options.maxOutputBytes, MAX_OUTPUT_BYTES, 1024, 4 * 1024 * 1024),
-      ignoredPaths
+      ignoredPaths,
+      scenarioEnv: {},
+      sentinelPaths: []
     }));
   }
   return redactSensitiveValues({
     schemaVersion: 'repotrial.runtime.v1',
     status: 'completed',
     provider: probe.provider,
-    isolation: {
-      sourceCopy: true,
-      chroot: true,
-      userNamespace: true,
-      mountNamespace: true,
-      utsNamespace: true,
-      ipcNamespace: true,
-      pidNamespace: true,
-      cgroupNamespace: true,
-      networkNamespace: true,
-      inheritedSecrets: false
-    },
+    isolation: readyIsolation(),
     workspace,
     candidates,
     runs,
     truncatedCandidates: Math.max(0, candidates.length - runs.length)
   });
+}
+
+export async function runRuntimeScenario(options = {}) {
+  const scenario = validateExperimentScenario(options.scenario ?? {});
+  const root = path.resolve(options.root ?? process.cwd());
+  const candidate = normalizeScenarioCandidate(options.candidate);
+  const ignoredPaths = normalizeIgnoredPaths(root, options.ignoredPaths ?? []);
+  const workspace = await inspectRuntimeWorkspace(root, {
+    ignoredPaths,
+    maxFiles: boundedInteger(options.maxSourceFiles, 20_000, 1, 1_000_000),
+    maxBytes: boundedInteger(options.maxSourceBytes, 256 * 1024 * 1024, 1, 4 * 1024 * 1024 * 1024)
+  });
+  if (workspace.limitExceeded) {
+    return {
+      schemaVersion: 'repotrial.runtime-scenario.v1',
+      status: 'unavailable',
+      provider: null,
+      reason: 'source-copy-limit',
+      isolation: unavailableIsolation(),
+      workspace,
+      scenario,
+      candidate: redactSensitiveValues(candidate),
+      canaryFingerprints: [],
+      sentinelPaths: [...scenario.sentinelPaths],
+      run: null
+    };
+  }
+
+  const probe = await probeRuntimeSandbox();
+  if (probe.status !== 'ready') {
+    return {
+      schemaVersion: 'repotrial.runtime-scenario.v1',
+      status: 'unavailable',
+      provider: null,
+      reason: probe.reason,
+      isolation: unavailableIsolation(),
+      workspace,
+      scenario,
+      candidate: redactSensitiveValues(candidate),
+      canaryFingerprints: [],
+      sentinelPaths: [...scenario.sentinelPaths],
+      run: null
+    };
+  }
+
+  const seed = String(options.canarySeed ?? sha256(JSON.stringify({
+    templateId: scenario.templateId,
+    candidate: { packagePath: candidate.packagePath, name: candidate.name, command: candidate.command }
+  })));
+  const prepared = prepareScenarioEnvironment(scenario.envKeys, seed);
+  const rawRun = await detonateCandidate(root, candidate, {
+    unshare: probe.unshare,
+    timeoutMs: boundedInteger(options.timeoutMs, DEFAULT_TIMEOUT, 250, 120_000),
+    maxOutputBytes: boundedInteger(options.maxOutputBytes, MAX_OUTPUT_BYTES, 1024, 4 * 1024 * 1024),
+    ignoredPaths,
+    scenarioEnv: prepared.environment,
+    sentinelPaths: scenario.sentinelPaths,
+    sentinelSeed: seed
+  });
+  const publicRun = redactSensitiveValues(replaceCanaries(rawRun, prepared.canaries));
+  const result = {
+    schemaVersion: 'repotrial.runtime-scenario.v1',
+    status: rawRun.status,
+    provider: probe.provider,
+    isolation: readyIsolation(),
+    workspace,
+    scenario,
+    candidate: redactSensitiveValues(candidate),
+    canaryFingerprints: prepared.canaries.map(({ key, fingerprint }) => ({ key, fingerprint })),
+    sentinelPaths: [...scenario.sentinelPaths],
+    run: publicRun
+  };
+  Object.defineProperty(result, 'canaries', { value: prepared.canaries, enumerable: false, configurable: false, writable: false });
+  Object.defineProperty(result, 'rawRun', { value: rawRun, enumerable: false, configurable: false, writable: false });
+  return result;
 }
 
 export async function discoverRuntimeCandidates(root, requestedScripts = [], snapshot = null, options = {}) {
@@ -128,6 +195,7 @@ async function detonateCandidate(sourceRoot, candidate, limits) {
   try {
     await buildRootfs(rootfs, sourceRoot, limits.ignoredPaths ?? []);
     const workspace = path.join(rootfs, 'workspace');
+    await seedScenarioSentinels(workspace, limits.sentinelPaths ?? [], limits.sentinelSeed ?? 'repotrial');
     const before = await snapshotFiles(workspace);
     const script = [
       'umask 077',
@@ -144,7 +212,8 @@ async function detonateCandidate(sourceRoot, candidate, limits) {
       TMPDIR: '/tmp',
       LANG: 'C.UTF-8',
       NODE_OPTIONS: '--require=/repotrial/preload.cjs',
-      REPOTRIAL_EVENT_FILE: '/events/events.log'
+      REPOTRIAL_EVENT_FILE: '/events/events.log',
+      ...(limits.scenarioEnv ?? {})
     };
     const processResult = await runProcess(limits.unshare, [
       ...NAMESPACE_FLAGS,
@@ -159,8 +228,8 @@ async function detonateCandidate(sourceRoot, candidate, limits) {
       signal: processResult.signal,
       timedOut: processResult.timedOut,
       durationMs: processResult.durationMs,
-      stdout: redactSensitiveText(processResult.stdout),
-      stderr: redactSensitiveText(processResult.stderr),
+      stdout: processResult.stdout,
+      stderr: processResult.stderr,
       outputTruncated: processResult.truncated,
       events,
       filesystemChanges: diffSnapshots(before, after)
@@ -182,6 +251,102 @@ function runtimeCandidate(input) {
   };
   Object.defineProperty(candidate, 'executionCommand', { value: input.command, enumerable: false, configurable: false, writable: false });
   return candidate;
+}
+
+function normalizeScenarioCandidate(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Runtime scenario candidate must be an object.');
+  const command = typeof value.executionCommand === 'string' ? value.executionCommand : value.command;
+  if (typeof command !== 'string' || !command.trim()) throw new Error('Runtime scenario candidate requires a command.');
+  return runtimeCandidate({
+    kind: value.kind ?? 'unknown',
+    packagePath: value.packagePath ?? '',
+    name: value.name ?? 'experiment',
+    command,
+    workingDirectory: value.workingDirectory ?? '.',
+    id: value.id,
+    event: value.event
+  });
+}
+
+function prepareScenarioEnvironment(envKeys, seed) {
+  const environment = {};
+  const canaries = [];
+  for (const key of envKeys) {
+    if (key === 'CI' || key === 'GITHUB_ACTIONS') {
+      environment[key] = 'true';
+      continue;
+    }
+    const value = `rtx_${sha256(`${seed}\0${key}`).slice(0, 24)}`;
+    environment[key] = value;
+    canaries.push({ key, value, fingerprint: sha256(value) });
+  }
+  return { environment, canaries };
+}
+
+async function seedScenarioSentinels(workspace, sentinelPaths, seed) {
+  for (const relative of sentinelPaths) {
+    const normalized = String(relative).replaceAll('\\', '/');
+    if (!normalized.startsWith('.repotrial-experiment/') || normalized.split('/').some((part) => part === '..')) {
+      throw new Error(`Invalid experiment sentinel path: ${relative}`);
+    }
+    const destination = path.join(workspace, ...normalized.split('/'));
+    const resolvedWorkspace = path.resolve(workspace);
+    const resolvedDestination = path.resolve(destination);
+    if (!resolvedDestination.startsWith(`${resolvedWorkspace}${path.sep}`)) throw new Error(`Experiment sentinel escapes workspace: ${relative}`);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, `repotrial-sentinel:${sha256(`${seed}\0${normalized}`).slice(0, 24)}\n`, { mode: 0o600 });
+  }
+}
+
+function replaceCanaries(value, canaries) {
+  const replacements = [...canaries].sort((a, b) => b.value.length - a.value.length);
+  const seen = new WeakSet();
+  const visit = (input, depth = 0) => {
+    if (depth > 48) return '[TRUNCATED_DEPTH]';
+    if (typeof input === 'string') {
+      let result = input;
+      for (const item of replacements) result = result.split(item.value).join(`[EXPERIMENT_CANARY:${item.fingerprint.slice(0, 16)}]`);
+      return result;
+    }
+    if (input == null || typeof input !== 'object') return input;
+    if (seen.has(input)) return '[CIRCULAR]';
+    seen.add(input);
+    if (Array.isArray(input)) return input.map((item) => visit(item, depth + 1));
+    const output = {};
+    for (const [key, child] of Object.entries(input)) output[key] = visit(child, depth + 1);
+    return output;
+  };
+  return visit(value);
+}
+
+function readyIsolation() {
+  return {
+    sourceCopy: true,
+    chroot: true,
+    userNamespace: true,
+    mountNamespace: true,
+    utsNamespace: true,
+    ipcNamespace: true,
+    pidNamespace: true,
+    cgroupNamespace: true,
+    networkNamespace: true,
+    inheritedSecrets: false
+  };
+}
+
+function unavailableIsolation() {
+  return {
+    sourceCopy: false,
+    chroot: false,
+    userNamespace: false,
+    mountNamespace: false,
+    utsNamespace: false,
+    ipcNamespace: false,
+    pidNamespace: false,
+    cgroupNamespace: false,
+    networkNamespace: false,
+    inheritedSecrets: false
+  };
 }
 
 function extractHookCommands(root, sourcePath) {
@@ -217,7 +382,6 @@ function extractHookCommands(root, sourcePath) {
   }
   return hooks;
 }
-
 
 async function inspectRuntimeWorkspace(root, limits) {
   const stack = [root];
@@ -353,7 +517,7 @@ async function readEvents(filename) {
       continue;
     }
     const [kind, tool, detail = ''] = line.split('\t');
-    events.push({ kind, tool, detail: redactSensitiveText(detail) });
+    events.push({ kind, tool, detail });
   }
   return events.slice(0, 10_000);
 }
@@ -450,7 +614,6 @@ function boundedInteger(value, fallback, min, max) {
   const number = Number(value ?? fallback);
   return Number.isInteger(number) ? Math.min(max, Math.max(min, number)) : fallback;
 }
-
 
 function normalizeIgnoredPaths(root, values) {
   return (Array.isArray(values) ? values : [values])

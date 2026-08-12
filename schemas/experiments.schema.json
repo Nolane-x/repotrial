@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repotrial.dev/schemas/experiments.schema.json",
+  "title": "RepoTrial Adaptive Experiments v1",
+  "type": "object",
+  "required": ["schemaVersion", "mode", "status", "budget", "plan", "runs", "observations", "evidence", "epistemicDelta", "summary"],
+  "properties": {
+    "schemaVersion": { "const": "repotrial.experiments.v1" },
+    "mode": { "enum": ["plan", "sandbox"] },
+    "status": { "enum": ["planned", "skipped", "completed", "inconclusive"] },
+    "budget": {
+      "type": "object",
+      "required": ["maxExperiments", "maxPerCandidate"],
+      "properties": {
+        "maxExperiments": { "type": "integer", "minimum": 0, "maximum": 32 },
+        "maxPerCandidate": { "type": "integer", "minimum": 0, "maximum": 8 }
+      }
+    },
+    "plan": {
+      "type": "object",
+      "required": ["schemaVersion", "budget", "experiments", "summary"],
+      "properties": {
+        "schemaVersion": { "const": "repotrial.experiment-plan.v1" },
+        "experiments": { "type": "array", "maxItems": 32 },
+        "summary": { "type": "object" }
+      }
+    },
+    "runs": { "type": "array", "maxItems": 32 },
+    "observations": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "required": ["schemaVersion", "id", "experimentId", "state", "signals", "evidence"],
+        "properties": {
+          "schemaVersion": { "const": "repotrial.experiment-observation.v1" },
+          "state": { "enum": ["OBSERVED", "TRIGGERED", "NOT_OBSERVED", "INCONCLUSIVE"] }
+        }
+      }
+    },
+    "evidence": { "type": "array" },
+    "epistemicDelta": {
+      "type": "object",
+      "required": ["schemaVersion", "interpretation", "hypothesisTransitions", "attackPathTransitions", "newlySatisfiedStages", "newCapabilities", "unresolvedTargets", "summary"],
+      "properties": {
+        "schemaVersion": { "const": "repotrial.epistemic-delta.v1" },
+        "interpretation": { "const": "knowledge-change-not-trust-change" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["plannedExperimentCount", "executedExperimentCount", "positiveObservationCount", "triggeredObservationCount", "notObservedCount", "inconclusiveObservationCount", "experimentChargeCount"]
+    }
+  }
+}

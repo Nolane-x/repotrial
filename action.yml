@@ -2,7 +2,7 @@ name: RepoTrial
 branding:
   icon: shield
   color: red
-description: Evidence-backed static, runtime, supply-chain, differential, reasoning, and ForgeOS security analysis for AI-agent repositories.
+description: Evidence-backed static, runtime, supply-chain, reasoning, adaptive experiment, and ForgeOS security analysis for AI-agent repositories.
 inputs:
   path:
     description: Repository directory to scan.
@@ -52,6 +52,22 @@ inputs:
     description: Maximum repository bytes copied into each runtime sandbox.
     required: false
     default: '268435456'
+  experiment-mode:
+    description: off, plan, or sandbox. Plan is non-executing; sandbox uses synthetic canaries and the existing containment boundary.
+    required: false
+    default: 'off'
+  experiment-max-runs:
+    description: Maximum targeted adaptive experiments.
+    required: false
+    default: '6'
+  experiment-max-per-candidate:
+    description: Maximum experiments planned for one runtime candidate.
+    required: false
+    default: '2'
+  experiment-timeout:
+    description: Optional experiment wall-clock timeout in milliseconds; empty reuses the runtime default.
+    required: false
+    default: ''
   supply-chain-mode:
     description: off, offline, or osv.
     required: false
@@ -106,6 +122,24 @@ outputs:
   new-invariant-violations:
     description: Number of newly introduced invariant violations since the baseline.
     value: ${{ steps.scan.outputs.new_invariant_violations }}
+  experiments-status:
+    description: Adaptive experiment status or disabled.
+    value: ${{ steps.scan.outputs.experiments_status }}
+  experiments-planned:
+    description: Number of adaptive experiments planned.
+    value: ${{ steps.scan.outputs.experiments_planned }}
+  experiments-executed:
+    description: Number of adaptive experiments executed.
+    value: ${{ steps.scan.outputs.experiments_executed }}
+  experiments-positive:
+    description: Number of experiments with direct positive observations.
+    value: ${{ steps.scan.outputs.experiments_positive }}
+  epistemic-transitions:
+    description: Number of hypothesis and attack-path transitions caused by assimilated experiment evidence.
+    value: ${{ steps.scan.outputs.epistemic_transitions }}
+  experiments-path:
+    description: Adaptive experiments JSON artifact path when enabled.
+    value: ${{ steps.scan.outputs.experiments_path }}
   report-path:
     description: Portable HTML report path.
     value: ${{ steps.scan.outputs.report_path }}
@@ -159,6 +193,10 @@ runs:
         INPUT_RUNTIME_SCRIPTS: ${{ inputs.runtime-scripts }}
         INPUT_RUNTIME_MAX_SOURCE_FILES: ${{ inputs.runtime-max-source-files }}
         INPUT_RUNTIME_MAX_SOURCE_BYTES: ${{ inputs.runtime-max-source-bytes }}
+        INPUT_EXPERIMENT_MODE: ${{ inputs.experiment-mode }}
+        INPUT_EXPERIMENT_MAX_RUNS: ${{ inputs.experiment-max-runs }}
+        INPUT_EXPERIMENT_MAX_PER_CANDIDATE: ${{ inputs.experiment-max-per-candidate }}
+        INPUT_EXPERIMENT_TIMEOUT: ${{ inputs.experiment-timeout }}
         INPUT_SUPPLY_CHAIN_MODE: ${{ inputs.supply-chain-mode }}
         INPUT_SIGNING_KEY: ${{ inputs.signing-key }}
         INPUT_SIGSTORE: ${{ inputs.sigstore }}

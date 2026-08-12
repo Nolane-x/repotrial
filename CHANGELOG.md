@@ -2,6 +2,19 @@
 
 All notable changes are documented here.
 
+## 0.6.0 — 2026-08-12
+
+- Added the Adaptive Adversarial Experiment Engine: initial evidence reasoning now identifies runtime-addressable `PARTIAL` / `UNKNOWN` attack paths and can deterministically plan targeted verification experiments.
+- Added three bounded internal experiment templates: synthetic credential egress canaries, sandbox-local filesystem sentinels, and synthetic CI-context triggers.
+- Added `off | plan | sandbox` experiment modes. `off` preserves RepoTrial 0.5 report/receipt behavior, `plan` performs no repository execution, and `sandbox` reuses the existing copied-rootfs + namespace + chroot containment boundary.
+- Added an internal synthetic-canary generator. Real host credentials are never injected; raw canary values exist only during in-memory classification and are replaced by SHA-256 fingerprints/redacted markers before public artifacts are created.
+- Added observation states `OBSERVED`, `TRIGGERED`, `NOT_OBSERVED`, and `INCONCLUSIVE`, with a hard epistemic rule that `NOT_OBSERVED` never becomes global negative evidence or proof of absence.
+- Added positive experiment evidence rules for synthetic secret egress, conditionally triggered network behavior, sandbox sentinel destruction, and contextual CI-triggered behavior. Only strong rules map into dangerous reasoning capabilities.
+- Added `repotrial.epistemic-delta.v1` to record hypothesis transitions, attack-path transitions, newly satisfied stages, new capabilities, and unresolved targets after experiment evidence is assimilated.
+- Added `experiments.json`, `repotrial.experiments.v1`, optional report-v2 schema integration, artifact-proof/provenance binding, and an Adaptive Experiments panel in the portable HTML case file.
+- Added CLI controls `--experiments`, `--experiment-max-runs`, `--experiment-max-per-candidate`, and `--experiment-timeout`, plus equivalent GitHub Action inputs and experiment/epistemic outputs.
+- Added a deterministic experiment planner with global/per-candidate budgets and hard caps, while retaining zero npm runtime dependencies and Node.js 22.14+ support.
+
 ## 0.5.0 — 2026-08-11
 
 - Added a pure deterministic Evidence Reasoning Engine that converts canonical charges and safeguards into a typed evidence graph, normalized capabilities, threat hypotheses, and ordered attack paths.
@@ -78,4 +91,3 @@ All notable changes are documented here.
 - Added hash-and-line evidence anchors and deterministic verdicts.
 - Added portable HTML, JSON, evidence, badge, and ForgeOS manifest artifacts.
 - Added fail-open ForgeOS CLI and versioned HTTP sidecar integration.
-- Added CLI, static report server, Dockerfile, GitHub Action, schemas, CI, and threat-model documentation.
