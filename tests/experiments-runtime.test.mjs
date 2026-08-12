@@ -93,10 +93,13 @@ test('filesystem scenario seeds only fixed sandbox-local sentinel paths', async 
 
 test('legacy runtime off contract remains unchanged by scenario support', async () => {
   const result = await runRuntimeAnalysis({ mode: 'off' });
-  assert.equal(result.schemaVersion, 'repotrial.runtime.v1');
-  assert.equal(result.status, 'disabled');
-  assert.equal(result.reason, 'runtime-disabled');
-  assert.deepEqual(result.runs, []);
-  assert.equal(result.isolation.networkNamespace, false);
-  assert.equal(result.isolation.inheritedSecrets, false);
+  assert.deepEqual(result, {
+    schemaVersion: 'repotrial.runtime.v1',
+    status: 'disabled',
+    provider: null,
+    reason: 'runtime-disabled',
+    candidates: [],
+    runs: [],
+    truncatedCandidates: 0
+  });
 });
