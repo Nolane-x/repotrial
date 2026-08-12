@@ -1,0 +1,54 @@
+name: Export RepoTrial 0.7 source artifact
+
+on:
+  push:
+    branches:
+      - chore/export-v0.7.0-artifact
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fff196f3f95b16f721425c147cbb494534d5d0d7
+      - name: Record source identity
+        run: |
+          printf '%s\n' 'fff196f3f95b16f721425c147cbb494534d5d0d7' > REPOTRIAL_SOURCE_COMMIT.txt
+          git rev-parse HEAD > REPOTRIAL_CHECKED_OUT_COMMIT.txt
+      - name: Upload complete project tree
+        uses: actions/upload-artifact@v4
+        with:
+          name: repotrial-v0.7.0-main-fff196f3-complete
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            .dockerignore
+            .github
+            .gitignore
+            CHANGELOG.md
+            CODE_OF_CONDUCT.md
+            CONTRIBUTING.md
+            Dockerfile
+            LICENSE
+            README-VN.md
+            README.md
+            README.vi.md
+            SECURITY.md
+            action.yml
+            bin
+            docs
+            integrations
+            package-lock.json
+            package.json
+            project-manifest.json
+            schemas
+            scripts
+            src
+            tests
+            REPOTRIAL_SOURCE_COMMIT.txt
+            REPOTRIAL_CHECKED_OUT_COMMIT.txt
