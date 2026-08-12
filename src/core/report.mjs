@@ -24,6 +24,7 @@ export function renderHtmlReport(report) {
     : '<li><strong>Complete</strong><span>No inspectable-scope omission was recorded.</span></li>';
   const panels = [
     renderReasoningPanel(report.reasoning),
+    renderExperimentsPanel(report.experiments),
     renderForgeOsPanel(report.forgeos),
     renderRuntimePanel(report.runtime),
     renderSupplyPanel(report.supplyChain),
@@ -69,7 +70,7 @@ export function renderHtmlReport(report) {
       ${panels}
     </aside>
   </div>
-  <div class="legal">RepoTrial combines bounded static analysis, optional isolated runtime detonation, supply-chain evidence, differential analysis, evidence reasoning, invariant proof, explicit negative evidence, and optional ForgeOS enrichment. A TRUSTED verdict is not a security certification. Attack paths are evidence-backed models rather than proof of exploitation, and a SATISFIED invariant requires explicit safeguards or explicit negative evidence where applicable; mere non-observation remains UNKNOWN.</div>
+  <div class="legal">RepoTrial combines bounded static analysis, optional isolated runtime detonation, adaptive adversarial experiments, supply-chain evidence, differential analysis, evidence reasoning, invariant proof, explicit negative evidence, and optional ForgeOS enrichment. A TRUSTED verdict is not a security certification. Attack paths are evidence-backed models rather than proof of exploitation. `NOT_OBSERVED` in an adaptive experiment is local experiment evidence only and is not proof of absence; it never becomes global negative evidence.</div>
   <footer class="footer"><span>Receipt SHA-256: <code>${escapeHtml(report.receipt.sha256)}</code></span><span>Schema ${escapeHtml(report.schemaVersion)}</span></footer>
 </main>
 <script type="application/json" id="repotrial-report">${rawJson}</script>
@@ -112,6 +113,24 @@ function renderReasoningPanel(reasoning = {}) {
   const reasoningPanel = `<section class="panel"><div class="panel-head"><h2>Evidence Reasoning</h2><span class="count">${escapeHtml(reasoning.schemaVersion)}</span></div><div class="bridge"><b>${viable.length} VIABLE attack paths</b><span>${partial.length} partial · ${blocked.length} blocked · ${escapeHtml(reasoning.summary?.capabilityCount ?? 0)} observed capabilities</span></div><ul class="list">${top || '<li><strong>No active hypothesis</strong><span>No modeled claim is currently supported.</span></li>'}${remediation}</ul></section>`;
   const invariantPanel = `<section class="panel"><div class="panel-head"><h2>Invariant Proof</h2><span class="count">${escapeHtml(reasoning.invariants?.schemaVersion ?? 'not-available')}</span></div><div class="bridge"><b>${violated.length} VIOLATED invariants</b><span>${satisfied.length} satisfied · ${unknown.length} unknown · ${notApplicable.length} not applicable · ${negativeEvidence.length} negative evidence claim(s)</span></div><ul class="list">${invariantHtml}${negativeHtml}</ul></section>`;
   return `${reasoningPanel}\n${invariantPanel}`;
+}
+
+function renderExperimentsPanel(experiments) {
+  if (!experiments?.schemaVersion) return '';
+  const summary = experiments.summary ?? {};
+  const delta = experiments.epistemicDelta?.summary ?? {};
+  const plan = experiments.plan?.experiments ?? [];
+  const observations = experiments.observations ?? [];
+  const stateCounts = observations.reduce((counts, item) => {
+    const key = String(item?.state ?? 'UNKNOWN');
+    counts[key] = (counts[key] ?? 0) + 1;
+    return counts;
+  }, {});
+  const transitions = Number(delta.hypothesisTransitionCount ?? 0) + Number(delta.attackPathTransitionCount ?? 0);
+  const topPlan = plan.slice(0, 5).map((item) => `<li><strong>${escapeHtml(item.templateId)}</strong><span>${escapeHtml(item.severity)} · ${escapeHtml(item.hypothesisId)} · priority ${escapeHtml(item.priority)}</span></li>`).join('');
+  const unresolved = experiments.epistemicDelta?.unresolvedTargets ?? [];
+  const unresolvedHtml = unresolved.slice(0, 4).map((item) => `<li><strong>Unresolved · ${escapeHtml(item.hypothesisId)}</strong><span>${escapeHtml(item.state)} · missing ${escapeHtml((item.missingStages ?? []).join(', ') || 'none')}</span></li>`).join('');
+  return `<section class="panel"><div class="panel-head"><h2>Adaptive Experiments</h2><span class="count">${escapeHtml(experiments.mode)} · ${escapeHtml(experiments.status)}</span></div><div class="bridge"><b>${escapeHtml(summary.positiveObservationCount ?? 0)} positive observations</b><span>${escapeHtml(summary.executedExperimentCount ?? 0)} executed / ${escapeHtml(summary.plannedExperimentCount ?? 0)} planned · ${escapeHtml(transitions)} epistemic transitions</span></div><ul class="list"><li><strong>Observation states</strong><span>OBSERVED ${escapeHtml(stateCounts.OBSERVED ?? 0)} · TRIGGERED ${escapeHtml(stateCounts.TRIGGERED ?? 0)} · NOT_OBSERVED ${escapeHtml(stateCounts.NOT_OBSERVED ?? 0)} · INCONCLUSIVE ${escapeHtml(stateCounts.INCONCLUSIVE ?? 0)}</span></li><li><strong>Epistemic rule</strong><span>NOT_OBSERVED is not proof of absence and never becomes global negative evidence.</span></li>${topPlan || '<li><strong>Plan</strong><span>No runtime-addressable experiment was planned.</span></li>'}${unresolvedHtml}</ul></section>`;
 }
 
 function renderRuntimePanel(runtime = {}) {
