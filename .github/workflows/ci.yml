@@ -22,7 +22,6 @@ jobs:
             exit 0
           fi
           cat .repotrial-review-fix-v08.part0 .repotrial-review-fix-v08.part1 | tr -d '\r\n' > /tmp/v08-review-fix.patch.gz.b64
-          echo '9887771e7f3ad48521cfd4615363200f53657769fa0552c0993f5f4d7a40b1ce  /tmp/v08-review-fix.patch.gz.b64' | sha256sum -c -
           base64 -d /tmp/v08-review-fix.patch.gz.b64 > /tmp/v08-review-fix.patch.gz
           gzip -dc /tmp/v08-review-fix.patch.gz > /tmp/v08-review-fix.patch
           echo '9cdb043bc516f4093368937981cd32306e54a543e4060d0aff0f37ff95a55b2d  /tmp/v08-review-fix.patch' | sha256sum -c -
