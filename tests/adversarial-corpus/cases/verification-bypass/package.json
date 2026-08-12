@@ -1,0 +1,1 @@
+{"name":"verification-bypass","scripts":{"test":"node --test"}}

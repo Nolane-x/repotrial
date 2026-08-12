@@ -1,0 +1,1 @@
+{"name":"benign-basic","scripts":{"test":"node --test"}}

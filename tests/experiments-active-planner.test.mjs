@@ -81,3 +81,10 @@ test('planner only targets PARTIAL chains and never turns NOT_OBSERVED into nega
   assert.equal(plan.summary.addressableChainCount, 1);
   assert.equal(Object.hasOwn(plan, 'negativeEvidence'), false);
 });
+
+
+test('planner never repeats the same template on the same runtime candidate', () => {
+  const plan = planActiveExperiments({ causalReasoning: { chains: [chain('c1'), chain('c2')] }, registry: getThreatRegistry(), candidates: [candidates[0]], maxExperiments: 6, maxPerCandidate: 6 });
+  const keys = plan.experiments.map((item) => `${item.candidate.id}\0${item.templateId}`);
+  assert.equal(new Set(keys).size, keys.length);
+});

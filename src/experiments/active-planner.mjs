@@ -89,11 +89,14 @@ export function planActiveExperiments(input = {}) {
   const perCandidate = new Map();
   const redundancy = new Map();
   const usedIds = new Set();
+  const usedProbeKeys = new Set();
 
   while (selected.length < maxExperiments) {
     let best = null;
     for (const proposal of proposals) {
       if (usedIds.has(proposal.baseId)) continue;
+      const probeKey = `${proposal.candidate.id}\0${proposal.templateId}`;
+      if (usedProbeKeys.has(probeKey)) continue;
       const used = perCandidate.get(proposal.candidate.id) ?? 0;
       if (used >= maxPerCandidate) continue;
       const redundancyKey = `${proposal.candidate.id}\0${proposal.templateId}`;
@@ -106,6 +109,7 @@ export function planActiveExperiments(input = {}) {
     if (!best) break;
     selected.push(stripInternal(best));
     usedIds.add(best.baseId);
+    usedProbeKeys.add(`${best.candidate.id}\0${best.templateId}`);
     perCandidate.set(best.candidate.id, (perCandidate.get(best.candidate.id) ?? 0) + 1);
     const redundancyKey = `${best.candidate.id}\0${best.templateId}`;
     redundancy.set(redundancyKey, (redundancy.get(redundancyKey) ?? 0) + 1);

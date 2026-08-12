@@ -3,90 +3,308 @@
   "$id": "https://repotrial.dev/schemas/differential.schema.json",
   "title": "RepoTrial Differential v1",
   "type": "object",
-  "required": ["schemaVersion", "baselineReceipt", "currentReceipt", "new", "existing", "resolved", "summary", "receipt"],
+  "required": [
+    "schemaVersion",
+    "baselineReceipt",
+    "currentReceipt",
+    "new",
+    "existing",
+    "resolved",
+    "summary",
+    "receipt"
+  ],
   "properties": {
-    "schemaVersion": { "const": "repotrial.differential.v1" },
-    "baselineReceipt": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
-    "currentReceipt": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
-    "new": { "type": "array" },
-    "existing": { "type": "array" },
-    "resolved": { "type": "array" },
+    "schemaVersion": {
+      "const": "repotrial.differential.v1"
+    },
+    "baselineReceipt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "currentReceipt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "new": {
+      "type": "array"
+    },
+    "existing": {
+      "type": "array"
+    },
+    "resolved": {
+      "type": "array"
+    },
     "summary": {
       "type": "object",
-      "required": ["new", "existing", "resolved"],
+      "required": [
+        "new",
+        "existing",
+        "resolved"
+      ],
       "properties": {
-        "new": { "type": "integer", "minimum": 0 },
-        "existing": { "type": "integer", "minimum": 0 },
-        "resolved": { "type": "integer", "minimum": 0 }
+        "new": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "existing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "resolved": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "reasoning": {
       "type": "object",
-      "required": ["schemaVersion", "capabilities", "attackPaths", "hypotheses", "invariants", "summary", "receipt"],
+      "required": [
+        "schemaVersion",
+        "capabilities",
+        "attackPaths",
+        "hypotheses",
+        "invariants",
+        "summary",
+        "receipt"
+      ],
       "properties": {
-        "schemaVersion": { "const": "repotrial.reasoning-differential.v1" },
+        "schemaVersion": {
+          "const": "repotrial.reasoning-differential.v1"
+        },
         "capabilities": {
           "type": "object",
-          "required": ["new", "existing", "resolved"],
+          "required": [
+            "new",
+            "existing",
+            "resolved"
+          ],
           "properties": {
-            "new": { "type": "array", "items": { "type": "string" } },
-            "existing": { "type": "array", "items": { "type": "string" } },
-            "resolved": { "type": "array", "items": { "type": "string" } }
+            "new": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "existing": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "resolved": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           }
         },
         "attackPaths": {
           "type": "object",
-          "required": ["new", "existing", "resolved"],
+          "required": [
+            "new",
+            "existing",
+            "resolved"
+          ],
           "properties": {
-            "new": { "type": "array" },
-            "existing": { "type": "array" },
-            "resolved": { "type": "array" }
+            "new": {
+              "type": "array"
+            },
+            "existing": {
+              "type": "array"
+            },
+            "resolved": {
+              "type": "array"
+            }
           }
         },
         "hypotheses": {
           "type": "object",
-          "required": ["regressed", "improved", "changed"],
+          "required": [
+            "regressed",
+            "improved",
+            "changed"
+          ],
           "properties": {
-            "regressed": { "type": "array" },
-            "improved": { "type": "array" },
-            "changed": { "type": "array" }
+            "regressed": {
+              "type": "array"
+            },
+            "improved": {
+              "type": "array"
+            },
+            "changed": {
+              "type": "array"
+            }
           }
         },
         "invariants": {
           "type": "object",
-          "required": ["newViolations", "existingViolations", "resolvedViolations"],
+          "required": [
+            "newViolations",
+            "existingViolations",
+            "resolvedViolations"
+          ],
           "properties": {
-            "newViolations": { "type": "array" },
-            "existingViolations": { "type": "array" },
-            "resolvedViolations": { "type": "array" }
+            "newViolations": {
+              "type": "array"
+            },
+            "existingViolations": {
+              "type": "array"
+            },
+            "resolvedViolations": {
+              "type": "array"
+            }
           }
         },
         "summary": {
           "type": "object",
-          "required": ["newCapabilityCount", "resolvedCapabilityCount", "newViableAttackPathCount", "resolvedViableAttackPathCount", "regressedHypothesisCount", "improvedHypothesisCount", "newInvariantViolationCount", "resolvedInvariantViolationCount"],
+          "required": [
+            "newCapabilityCount",
+            "resolvedCapabilityCount",
+            "newViableAttackPathCount",
+            "resolvedViableAttackPathCount",
+            "regressedHypothesisCount",
+            "improvedHypothesisCount",
+            "newInvariantViolationCount",
+            "resolvedInvariantViolationCount"
+          ],
           "properties": {
-            "newCapabilityCount": { "type": "integer", "minimum": 0 },
-            "resolvedCapabilityCount": { "type": "integer", "minimum": 0 },
-            "newViableAttackPathCount": { "type": "integer", "minimum": 0 },
-            "resolvedViableAttackPathCount": { "type": "integer", "minimum": 0 },
-            "regressedHypothesisCount": { "type": "integer", "minimum": 0 },
-            "improvedHypothesisCount": { "type": "integer", "minimum": 0 },
-            "newInvariantViolationCount": { "type": "integer", "minimum": 0 },
-            "resolvedInvariantViolationCount": { "type": "integer", "minimum": 0 }
+            "newCapabilityCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "resolvedCapabilityCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "newViableAttackPathCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "resolvedViableAttackPathCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "regressedHypothesisCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "improvedHypothesisCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "newInvariantViolationCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "resolvedInvariantViolationCount": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         },
-        "receipt": { "$ref": "#/$defs/receipt" }
+        "receipt": {
+          "$ref": "#/$defs/receipt"
+        }
       }
     },
-    "receipt": { "$ref": "#/$defs/receipt" }
+    "receipt": {
+      "$ref": "#/$defs/receipt"
+    },
+    "causal": {
+      "type": "object",
+      "required": [
+        "schemaVersion",
+        "newActive",
+        "existingActive",
+        "resolvedActive",
+        "regressed",
+        "improved",
+        "changed",
+        "summary",
+        "receipt"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "repotrial.causal-differential.v1"
+        },
+        "newActive": {
+          "type": "array"
+        },
+        "existingActive": {
+          "type": "array"
+        },
+        "resolvedActive": {
+          "type": "array"
+        },
+        "regressed": {
+          "type": "array"
+        },
+        "improved": {
+          "type": "array"
+        },
+        "changed": {
+          "type": "array"
+        },
+        "summary": {
+          "type": "object",
+          "required": [
+            "newActiveChainCount",
+            "resolvedActiveChainCount",
+            "regressedThreatCount",
+            "improvedThreatCount",
+            "newHighImpactActiveChainCount"
+          ],
+          "properties": {
+            "newActiveChainCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "resolvedActiveChainCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "regressedThreatCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "improvedThreatCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "newHighImpactActiveChainCount": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "receipt": {
+          "$ref": "#/$defs/receipt"
+        }
+      }
+    }
   },
   "$defs": {
     "receipt": {
       "type": "object",
-      "required": ["algorithm", "sha256"],
+      "required": [
+        "algorithm",
+        "sha256"
+      ],
       "properties": {
-        "algorithm": { "const": "sha256" },
-        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        "algorithm": {
+          "const": "sha256"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
       }
     }
   }

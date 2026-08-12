@@ -24,6 +24,7 @@ export function renderHtmlReport(report) {
     : '<li><strong>Complete</strong><span>No inspectable-scope omission was recorded.</span></li>';
   const panels = [
     renderReasoningPanel(report.reasoning),
+    renderCausalPanel(report.causal),
     renderExperimentsPanel(report.experiments),
     renderForgeOsPanel(report.forgeos),
     renderRuntimePanel(report.runtime),
@@ -70,7 +71,7 @@ export function renderHtmlReport(report) {
       ${panels}
     </aside>
   </div>
-  <div class="legal">RepoTrial combines bounded static analysis, optional isolated runtime detonation, adaptive adversarial experiments, supply-chain evidence, differential analysis, evidence reasoning, invariant proof, explicit negative evidence, and optional ForgeOS enrichment. A TRUSTED verdict is not a security certification. Attack paths are evidence-backed models rather than proof of exploitation. NOT_OBSERVED in an adaptive experiment is local experiment evidence only and is not proof of absence; it never becomes global negative evidence.</div>
+  <div class="legal">RepoTrial combines bounded static analysis, optional isolated runtime detonation, adaptive adversarial experiments, causal attack-chain synthesis, supply-chain evidence, differential analysis, evidence reasoning, invariant proof, explicit negative evidence, and optional ForgeOS enrichment. A TRUSTED verdict is not a security certification. Attack paths are evidence-backed models rather than proof of exploitation. NOT_OBSERVED in an adaptive experiment is local experiment evidence only and is not proof of absence; it never becomes global negative evidence.</div>
   <footer class="footer"><span>Receipt SHA-256: <code>${escapeHtml(report.receipt.sha256)}</code></span><span>Schema ${escapeHtml(report.schemaVersion)}</span></footer>
 </main>
 <script type="application/json" id="repotrial-report">${rawJson}</script>
@@ -115,6 +116,22 @@ function renderReasoningPanel(reasoning = {}) {
   return `${reasoningPanel}\n${invariantPanel}`;
 }
 
+function renderCausalPanel(causal) {
+  if (!causal?.schemaVersion) return '';
+  const chains = Array.isArray(causal.reasoning?.chains) ? causal.reasoning.chains : [];
+  const active = chains.filter((item) => ['PROVEN', 'SUPPORTED'].includes(item.state));
+  const partial = chains.filter((item) => item.state === 'PARTIAL');
+  const blocked = chains.filter((item) => item.state === 'BLOCKED');
+  const contradicted = chains.filter((item) => item.state === 'CONTRADICTED');
+  const top = active.slice(0, 6).map((item) => `<li><strong>${escapeHtml(item.threatId)}</strong><span>${escapeHtml(item.state)} · ${escapeHtml(item.severity)} · rank ${escapeHtml(item.score?.rank ?? 0)} · ${escapeHtml((item.stages ?? []).map((stage) => stage.selectedCapability ?? `?${stage.id}`).join(' → '))}</span></li>`).join('');
+  const activeRun = causal.activeRun?.summary;
+  const delta = causal.epistemicDelta?.summary;
+  const activeDetail = causal.mode === 'active'
+    ? `<li><strong>Active verification</strong><span>${escapeHtml(activeRun?.executedEpisodeCount ?? 0)} episodes · ${escapeHtml(activeRun?.observedEpisodeCount ?? 0)} observed · ${escapeHtml(activeRun?.inconclusiveEpisodeCount ?? 0)} inconclusive · ${escapeHtml(delta?.transitionCount ?? 0)} chain transitions</span></li>`
+    : '<li><strong>Active verification</strong><span>Not executed in analyze mode.</span></li>';
+  return `<section class="panel"><div class="panel-head"><h2>Causal Adversarial Reasoning</h2><span class="count">${escapeHtml(causal.mode)} · ${escapeHtml(causal.schemaVersion)}</span></div><div class="bridge"><b>${active.length} ACTIVE causal chains</b><span>${partial.length} partial · ${blocked.length} blocked · ${contradicted.length} contradicted · ${escapeHtml(causal.registry?.definitionCount ?? 0)} threat families</span></div><ul class="list"><li><strong>Epistemic boundary</strong><span>Chains are evidence-backed causal models, not proof of successful exploitation. NOT_OBSERVED remains episode-scoped.</span></li>${activeDetail}${top || '<li><strong>No active causal chain</strong><span>No complete modeled chain is currently supported by the observed evidence.</span></li>'}</ul></section>`;
+}
+
 function renderExperimentsPanel(experiments) {
   if (!experiments?.schemaVersion) return '';
   const summary = experiments.summary ?? {};
@@ -149,7 +166,8 @@ function renderSupplyPanel(supply = {}) {
 function renderDifferentialPanel(differential) {
   if (!differential) return `<section class="panel"><div class="panel-head"><h2>Differential</h2></div><div class="bridge"><b>not configured</b><span>Provide a baseline report or Git reference to classify new, existing, and resolved findings.</span></div></section>`;
   const summary = differential.summary ?? {};
-  return `<section class="panel"><div class="panel-head"><h2>Differential</h2><span class="count">baseline compared</span></div><div class="bridge"><b>${escapeHtml(summary.new ?? 0)} new findings</b><span>Receipt ${escapeHtml(differential.receipt?.sha256?.slice(0, 16) ?? 'unavailable')}</span></div><ul class="list"><li><strong>New</strong><span>${escapeHtml(summary.new ?? 0)} introduced findings</span></li><li><strong>Existing</strong><span>${escapeHtml(summary.existing ?? 0)} unchanged findings</span></li><li><strong>Resolved</strong><span>${escapeHtml(summary.resolved ?? 0)} findings no longer observed</span></li></ul></section>`;
+  const causal = differential.causal?.summary;
+  return `<section class="panel"><div class="panel-head"><h2>Differential</h2><span class="count">baseline compared</span></div><div class="bridge"><b>${escapeHtml(summary.new ?? 0)} new findings</b><span>Receipt ${escapeHtml(differential.receipt?.sha256?.slice(0, 16) ?? 'unavailable')}</span></div><ul class="list"><li><strong>New</strong><span>${escapeHtml(summary.new ?? 0)} introduced findings</span></li><li><strong>Existing</strong><span>${escapeHtml(summary.existing ?? 0)} unchanged findings</span></li><li><strong>Resolved</strong><span>${escapeHtml(summary.resolved ?? 0)} findings no longer observed</span></li>${causal ? `<li><strong>Causal regressions</strong><span>${escapeHtml(causal.newActiveChainCount ?? 0)} new active chains · ${escapeHtml(causal.regressedThreatCount ?? 0)} regressed threat families</span></li>` : ''}</ul></section>`;
 }
 
 function renderIntegrityPanel(integrity = {}, receipt = {}) {

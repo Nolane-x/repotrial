@@ -1,0 +1,1 @@
+{"name":"lifecycle-credential","scripts":{"prepare":"node -e \"console.log(process.env.CI)\"","test":"node --test"}}

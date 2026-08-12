@@ -7,6 +7,8 @@ import { sha256, stableStringify } from './hash.mjs';
 
 const exec = promisify(execFile);
 
+const CAUSAL_RISK = Object.freeze({ BLOCKED: 0, PARTIAL: 1, CONTRADICTED: 2, SUPPORTED: 3, PROVEN: 4 });
+
 const HYPOTHESIS_RISK = Object.freeze({
   REFUTED: 0,
   UNTESTED: 1,
@@ -36,6 +38,7 @@ export function compareReports(baseline, current) {
     summary: { new: added.length, existing: existing.length, resolved: resolved.length }
   };
   if (hasReasoning(baseline) && hasReasoning(current)) payload.reasoning = compareReasoning(baseline.reasoning, current.reasoning);
+  if (hasCausal(baseline) && hasCausal(current)) payload.causal = compareCausal(baseline.causal, current.causal);
   return { ...payload, receipt: { algorithm: 'sha256', sha256: sha256(stableStringify(payload)) } };
 }
 
@@ -160,6 +163,71 @@ function compareReasoning(baseline, current) {
   return { ...payload, receipt: { algorithm: 'sha256', sha256: sha256(stableStringify(payload)) } };
 }
 
+function compareCausal(baseline, current) {
+  const baselineChains = Array.isArray(baseline.reasoning?.chains) ? baseline.reasoning.chains : [];
+  const currentChains = Array.isArray(current.reasoning?.chains) ? current.reasoning.chains : [];
+  const baselineActive = new Map(baselineChains.filter(isActiveCausalChain).map((item) => [item.id, item]));
+  const currentActive = new Map(currentChains.filter(isActiveCausalChain).map((item) => [item.id, item]));
+  const newActive = [];
+  const existingActive = [];
+  const resolvedActive = [];
+  for (const [id, item] of currentActive) (baselineActive.has(id) ? existingActive : newActive).push(structuredClone(item));
+  for (const [id, item] of baselineActive) if (!currentActive.has(id)) resolvedActive.push(structuredClone(item));
+
+  const beforeThreats = aggregateThreatStates(baselineChains);
+  const afterThreats = aggregateThreatStates(currentChains);
+  const changed = [];
+  const regressed = [];
+  const improved = [];
+  for (const threatId of unionKeys(beforeThreats, afterThreats)) {
+    const before = beforeThreats.get(threatId);
+    const after = afterThreats.get(threatId);
+    if (!before || !after || before.state === after.state) continue;
+    const change = { threatId, severity: after.severity ?? before.severity, from: before.state, to: after.state };
+    changed.push(change);
+    const beforeRank = CAUSAL_RISK[before.state] ?? 1;
+    const afterRank = CAUSAL_RISK[after.state] ?? 1;
+    if (afterRank > beforeRank) regressed.push(change);
+    else if (afterRank < beforeRank) improved.push(change);
+  }
+  const sortChains = (items) => items.sort((a, b) => severityRank(b.severity) - severityRank(a.severity) || String(a.threatId).localeCompare(String(b.threatId)) || String(a.id).localeCompare(String(b.id)));
+  const sortChanges = (items) => items.sort((a, b) => severityRank(b.severity) - severityRank(a.severity) || a.threatId.localeCompare(b.threatId) || a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
+  const payload = {
+    schemaVersion: 'repotrial.causal-differential.v1',
+    newActive: sortChains(newActive),
+    existingActive: sortChains(existingActive),
+    resolvedActive: sortChains(resolvedActive),
+    regressed: sortChanges(regressed),
+    improved: sortChanges(improved),
+    changed: sortChanges(changed),
+    summary: {
+      newActiveChainCount: newActive.length,
+      resolvedActiveChainCount: resolvedActive.length,
+      regressedThreatCount: regressed.length,
+      improvedThreatCount: improved.length,
+      newHighImpactActiveChainCount: newActive.filter((item) => ['high', 'critical'].includes(item.severity)).length
+    }
+  };
+  return { ...payload, receipt: { algorithm: 'sha256', sha256: sha256(stableStringify(payload)) } };
+}
+
+function aggregateThreatStates(chains) {
+  const map = new Map();
+  for (const chain of chains) {
+    if (typeof chain?.threatId !== 'string') continue;
+    const current = map.get(chain.threatId);
+    const rank = CAUSAL_RISK[chain.state] ?? 1;
+    if (!current || rank > current.rank || (rank === current.rank && severityRank(chain.severity) > severityRank(current.severity))) {
+      map.set(chain.threatId, { state: chain.state, severity: chain.severity ?? 'medium', rank });
+    }
+  }
+  return map;
+}
+
+function isActiveCausalChain(item) {
+  return item && typeof item.id === 'string' && ['PROVEN', 'SUPPORTED'].includes(item.state);
+}
+
 function observedCapabilities(reasoning) {
   const values = (reasoning.graph?.nodes ?? [])
     .filter((item) => item?.type === 'CAPABILITY' && item.observed !== false && typeof item.capability === 'string')
@@ -215,6 +283,10 @@ function sortHypothesisChanges(items) {
 
 function sortInvariants(items) {
   return items.sort((a, b) => severityRank(b.severity) - severityRank(a.severity) || a.id.localeCompare(b.id));
+}
+
+function hasCausal(report) {
+  return report?.causal?.schemaVersion === 'repotrial.causal.v1';
 }
 
 function hasReasoning(report) {

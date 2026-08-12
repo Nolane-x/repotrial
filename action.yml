@@ -2,7 +2,7 @@ name: RepoTrial
 branding:
   icon: shield
   color: red
-description: Evidence-backed static, runtime, supply-chain, reasoning, adaptive experiment, and ForgeOS security analysis for AI-agent repositories.
+description: Evidence-backed static, runtime, supply-chain, reasoning, adaptive experiment, causal attack synthesis, and ForgeOS security analysis for AI-agent repositories.
 inputs:
   path:
     description: Repository directory to scan.
@@ -30,6 +30,14 @@ inputs:
     default: ''
   fail-on-new-reasoning:
     description: Optional severity threshold applied only to newly introduced viable attack paths, hypothesis regressions, or invariant violations.
+    required: false
+    default: ''
+  fail-on-causal:
+    description: Optional info, low, medium, high, or critical threshold for active causal attack chains.
+    required: false
+    default: ''
+  fail-on-new-causal:
+    description: Optional severity threshold for newly active or regressed causal attack chains since the baseline.
     required: false
     default: ''
   baseline-ref:
@@ -66,6 +74,30 @@ inputs:
     default: '2'
   experiment-timeout:
     description: Optional experiment wall-clock timeout in milliseconds; empty reuses the runtime default.
+    required: false
+    default: ''
+  causal-mode:
+    description: off, analyze, or active. Analyze is non-executing; active runs bounded synthetic adversarial episodes in the existing sandbox.
+    required: false
+    default: 'off'
+  causal-max-depth:
+    description: Maximum causal chain depth retained by bounded synthesis.
+    required: false
+    default: '8'
+  causal-max-chains:
+    description: Maximum causal attack chains retained per scan.
+    required: false
+    default: '64'
+  causal-max-runs:
+    description: Maximum active causal verification episodes.
+    required: false
+    default: '6'
+  causal-max-per-candidate:
+    description: Maximum active causal probes for one runtime candidate.
+    required: false
+    default: '2'
+  causal-timeout:
+    description: Optional per-phase causal episode timeout in milliseconds; empty reuses the runtime default.
     required: false
     default: ''
   supply-chain-mode:
@@ -122,6 +154,18 @@ outputs:
   new-invariant-violations:
     description: Number of newly introduced invariant violations since the baseline.
     value: ${{ steps.scan.outputs.new_invariant_violations }}
+  causal-active-chains:
+    description: Number of currently active PROVEN or SUPPORTED causal attack chains.
+    value: ${{ steps.scan.outputs.causal_active_chains }}
+  causal-high-impact-active-chains:
+    description: Number of active high or critical causal attack chains.
+    value: ${{ steps.scan.outputs.causal_high_impact_active_chains }}
+  new-causal-active-chains:
+    description: Number of newly active causal chains since the baseline.
+    value: ${{ steps.scan.outputs.new_causal_active_chains }}
+  causal-path:
+    description: Causal analysis JSON artifact path when causal analysis is enabled.
+    value: ${{ steps.scan.outputs.causal_path }}
   experiments-status:
     description: Adaptive experiment status or disabled.
     value: ${{ steps.scan.outputs.experiments_status }}
@@ -188,6 +232,8 @@ runs:
         INPUT_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
         INPUT_FAIL_ON_REASONING: ${{ inputs.fail-on-reasoning }}
         INPUT_FAIL_ON_NEW_REASONING: ${{ inputs.fail-on-new-reasoning }}
+        INPUT_FAIL_ON_CAUSAL: ${{ inputs.fail-on-causal }}
+        INPUT_FAIL_ON_NEW_CAUSAL: ${{ inputs.fail-on-new-causal }}
         INPUT_BASELINE_REF: ${{ inputs.baseline-ref }}
         INPUT_RUNTIME_MODE: ${{ inputs.runtime-mode }}
         INPUT_RUNTIME_SCRIPTS: ${{ inputs.runtime-scripts }}
@@ -197,6 +243,12 @@ runs:
         INPUT_EXPERIMENT_MAX_RUNS: ${{ inputs.experiment-max-runs }}
         INPUT_EXPERIMENT_MAX_PER_CANDIDATE: ${{ inputs.experiment-max-per-candidate }}
         INPUT_EXPERIMENT_TIMEOUT: ${{ inputs.experiment-timeout }}
+        INPUT_CAUSAL_MODE: ${{ inputs.causal-mode }}
+        INPUT_CAUSAL_MAX_DEPTH: ${{ inputs.causal-max-depth }}
+        INPUT_CAUSAL_MAX_CHAINS: ${{ inputs.causal-max-chains }}
+        INPUT_CAUSAL_MAX_RUNS: ${{ inputs.causal-max-runs }}
+        INPUT_CAUSAL_MAX_PER_CANDIDATE: ${{ inputs.causal-max-per-candidate }}
+        INPUT_CAUSAL_TIMEOUT: ${{ inputs.causal-timeout }}
         INPUT_SUPPLY_CHAIN_MODE: ${{ inputs.supply-chain-mode }}
         INPUT_SIGNING_KEY: ${{ inputs.signing-key }}
         INPUT_SIGSTORE: ${{ inputs.sigstore }}

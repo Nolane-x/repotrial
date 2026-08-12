@@ -1,6 +1,7 @@
 import { sha256, stableStringify } from '../core/hash.mjs';
 import { getExperimentTemplate, validateExperimentScenario } from './templates.mjs';
 import { runRuntimeScenario } from '../runtime/sandbox.mjs';
+import { classifyExperimentObservation } from './observe.mjs';
 
 const HARD_MAX_PHASES = 8;
 const HARD_MAX_SENTINELS = 8;
@@ -20,8 +21,8 @@ const EPISODE_TEMPLATES = Object.freeze({
   'filesystem-destruction-episode-v1': {
     title: 'Sandbox-local destructive filesystem episode',
     phases: [
-      { phase: 'PREPARE', kind: 'metadata', sentinelPaths: ['.repotrial-experiment/episode-sentinel.txt'] },
-      { phase: 'TRIGGER', kind: 'scenario', scenarioTemplateId: 'filesystem-sentinel-v1', sentinelPaths: ['.repotrial-experiment/episode-sentinel.txt'] },
+      { phase: 'PREPARE', kind: 'metadata', sentinelPaths: ['.repotrial-experiment/sentinel-a.txt'] },
+      { phase: 'TRIGGER', kind: 'scenario', scenarioTemplateId: 'filesystem-sentinel-v1', sentinelPaths: ['.repotrial-experiment/sentinel-a.txt'] },
       { phase: 'OBSERVE', kind: 'metadata' },
       { phase: 'VERIFY', kind: 'metadata' }
     ]
@@ -152,17 +153,51 @@ export async function executeAdversarialEpisode(input = {}) {
   return { ...result, receipt: sha256(stableStringify(result)) };
 }
 
-async function defaultScenarioRunner({ phase, root, candidate, canarySeed, timeoutMs }) {
+async function defaultScenarioRunner({ phase, episode, root, candidate, canarySeed, timeoutMs }) {
   if (!root) return { status: 'INCONCLUSIVE', reason: 'repository-root-required', observations: [] };
   const template = getExperimentTemplate(phase.scenarioTemplateId);
   if (!template) return { status: 'INCONCLUSIVE', reason: 'scenario-template-unavailable', observations: [] };
+  const baselineScenario = validateExperimentScenario({ templateId: 'ci-context-trigger-v1', envKeys: [], sentinelPaths: [] });
   const scenario = validateExperimentScenario({
     templateId: template.id,
     envKeys: template.envKeys,
     sentinelPaths: phase.sentinelPaths?.length ? phase.sentinelPaths : template.sentinelPaths
   });
-  const raw = await runRuntimeScenario({ root, candidate, scenario, canarySeed, timeoutMs });
-  return { status: 'INCONCLUSIVE', reason: `unclassified-runtime-status:${String(raw?.status ?? 'unknown')}`, observations: [] };
+  const [baseline, targeted] = await Promise.all([
+    runRuntimeScenario({ root, candidate, scenario: baselineScenario, canarySeed: `${canarySeed}\0baseline`, timeoutMs }),
+    runRuntimeScenario({ root, candidate, scenario, canarySeed: `${canarySeed}\0target`, timeoutMs })
+  ]);
+  const observation = classifyExperimentObservation({
+    experiment: {
+      id: `${episode.id}:${phase.id}`,
+      templateId: template.id,
+      hypothesisId: episode.threatId,
+      attackPathId: episode.chainId,
+      candidate
+    },
+    baselineRun: internalRun(baseline),
+    scenarioRun: internalRun(targeted),
+    canaries: internalCanaries(targeted),
+    sentinelPaths: scenario.sentinelPaths
+  });
+  return {
+    observationState: observation.state,
+    reason: observation.reason ?? observation.state.toLowerCase(),
+    observations: [observation],
+    emittedEvidenceIds: [observation.id]
+  };
+}
+
+function internalRun(result) {
+  if (!result || typeof result !== 'object') return null;
+  return result.rawRun ?? result.run ?? null;
+}
+
+function internalCanaries(result) {
+  if (!result || typeof result !== 'object' || !Array.isArray(result.canaries)) return [];
+  return result.canaries
+    .filter((item) => item && typeof item === 'object' && item.value != null)
+    .map((item) => ({ key: String(item.key ?? 'CANARY'), value: String(item.value), fingerprint: String(item.fingerprint ?? '') }));
 }
 
 function normalizePhaseResult(phase, raw) {

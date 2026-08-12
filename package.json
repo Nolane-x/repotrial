@@ -1,7 +1,7 @@
 {
   "name": "repotrial",
-  "version": "0.6.0",
-  "description": "Evidence-backed static, runtime, supply-chain, reasoning, and adaptive adversarial verification for AI-agent repositories.",
+  "version": "0.7.0",
+  "description": "Deterministic evidence reasoning, causal attack synthesis, active adversarial verification, runtime, and supply-chain security for AI-agent repositories.",
   "type": "module",
   "bin": {
     "repotrial": "./bin/repotrial.mjs"
@@ -29,7 +29,9 @@
     "LICENSE",
     "SECURITY.md",
     "CHANGELOG.md",
-    "CONTRIBUTING.md"
+    "CONTRIBUTING.md",
+    "docs/causal-adversarial-reasoning.md",
+    "tests/adversarial-corpus"
   ],
   "engines": {
     "node": ">=22.14"
@@ -41,7 +43,8 @@
     "scan:self": "node bin/repotrial.mjs scan . --output .repotrial",
     "start": "node bin/repotrial.mjs serve .repotrial",
     "package:check": "npm pack --dry-run",
-    "verify:forgeos": "node scripts/verify-forgeos-integration.mjs"
+    "verify:forgeos": "node scripts/verify-forgeos-integration.mjs",
+    "benchmark:adversarial": "node scripts/benchmark-adversarial.mjs"
   },
   "keywords": [
     "ai-agent",
@@ -62,7 +65,12 @@
     "sarif",
     "forgeos",
     "mcp",
-    "github-action"
+    "github-action",
+    "causal-security",
+    "attack-chain",
+    "active-verification",
+    "agentic-security",
+    "security-benchmark"
   ],
   "repository": {
     "type": "git",

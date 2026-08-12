@@ -22,9 +22,12 @@ import { signWithCosign } from '../integrity/cosign.mjs';
 import { reasonAboutEvidence } from '../reasoning/engine.mjs';
 import { runAdaptiveExperiments } from '../experiments/run.mjs';
 import { buildEpistemicDelta } from '../experiments/delta.mjs';
+import { analyzeCausalEvidence, buildCausalEpistemicDelta } from '../reasoning/causal-engine.mjs';
+import { runCausalActiveExperiments } from '../experiments/causal-run.mjs';
 
 const PACKAGE_VERSION = JSON.parse(await readFile(new URL('../../package.json', import.meta.url), 'utf8')).version;
 const EXPERIMENT_MODES = new Set(['off', 'plan', 'sandbox']);
+const CAUSAL_MODES = new Set(['off', 'analyze', 'active']);
 
 export async function scanRepository(options = {}) {
   const root = path.resolve(options.root ?? process.cwd());
@@ -34,6 +37,8 @@ export async function scanRepository(options = {}) {
   const scanId = options.scanId ?? randomUUID();
   const experimentMode = String(options.experiments?.mode ?? 'off').toLowerCase();
   if (!EXPERIMENT_MODES.has(experimentMode)) throw new Error('Experiment mode must be off, plan, or sandbox.');
+  const causalMode = String(options.causal?.mode ?? 'off').toLowerCase();
+  if (!CAUSAL_MODES.has(causalMode)) throw new Error('Causal mode must be off, analyze, or active.');
 
   const outputInsideRoot = outputDir.startsWith(`${root}${path.sep}`);
   const excludedPaths = (options.discovery?.excludedPaths ?? []).map((entry) => path.resolve(root, entry));
@@ -98,9 +103,9 @@ export async function scanRepository(options = {}) {
     experimentCharges = experimentResult.charges;
   }
 
-  const charges = [...baseCharges, ...experimentCharges];
-  const verdict = calculateVerdict(charges, snapshot.coverage);
-  const reasoning = experimentCharges.length
+  let charges = [...baseCharges, ...experimentCharges];
+  let verdict = calculateVerdict(charges, snapshot.coverage);
+  let reasoning = experimentCharges.length
     ? reasonAboutEvidence({ charges, safeguards: local.safeguards, coverage: snapshot.coverage, providers })
     : initialReasoning;
   let experiments = null;
@@ -111,6 +116,54 @@ export async function scanRepository(options = {}) {
       evidence: experimentCharges,
       epistemicDelta: buildEpistemicDelta(initialReasoning, reasoning)
     };
+  }
+
+  let causal = null;
+  if (causalMode !== 'off') {
+    const causalCandidates = causalMode === 'active'
+      ? await discoverRuntimeCandidates(root, options.runtime?.scripts ?? [], snapshot, { ignoredPaths: providerIgnoredPaths })
+      : [];
+    const causalInput = {
+      mode: causalMode,
+      charges,
+      safeguards: local.safeguards,
+      coverage: snapshot.coverage,
+      providers,
+      reasoning,
+      candidates: causalCandidates,
+      maxDepth: options.causal?.maxDepth,
+      maxChains: options.causal?.maxChains,
+      maxExperiments: options.causal?.maxRuns,
+      maxPerCandidate: options.causal?.maxPerCandidate
+    };
+    const initialCausal = analyzeCausalEvidence(causalInput);
+    if (causalMode === 'active') {
+      const activeRun = await runCausalActiveExperiments({
+        causal: initialCausal,
+        root,
+        snapshot,
+        scanId,
+        timeoutMs: options.causal?.timeoutMs ?? options.runtime?.timeoutMs,
+        episodeExecutor: options.causal?.episodeExecutor
+      });
+      const causalCharges = activeRun.charges;
+      if (causalCharges.length) {
+        charges = [...charges, ...causalCharges];
+        verdict = calculateVerdict(charges, snapshot.coverage);
+        reasoning = reasonAboutEvidence({ charges, safeguards: local.safeguards, coverage: snapshot.coverage, providers });
+      }
+      const finalCausal = analyzeCausalEvidence({ ...causalInput, charges, reasoning });
+      const { receipt: _finalReceipt, activePlan: _finalPlan, ...finalBody } = finalCausal;
+      const causalBody = {
+        ...finalBody,
+        activePlan: initialCausal.activePlan,
+        activeRun,
+        epistemicDelta: buildCausalEpistemicDelta(initialCausal, finalCausal)
+      };
+      causal = { ...causalBody, receipt: sha256(stableStringify(causalBody)) };
+    } else {
+      causal = initialCausal;
+    }
   }
 
   const draft = {
@@ -129,6 +182,7 @@ export async function scanRepository(options = {}) {
     safeguards: local.safeguards,
     reasoning,
     ...(experiments ? { experiments } : {}),
+    ...(causal ? { causal } : {}),
     forgeos,
     runtime,
     supplyChain: supplySummary(supplyChain),
@@ -161,6 +215,7 @@ export async function scanRepository(options = {}) {
     supplyChain: path.join(outputDir, 'supply-chain.json')
   };
   if (experiments) artifacts.experiments = path.join(outputDir, 'experiments.json');
+  if (causal) artifacts.causal = path.join(outputDir, 'causal.json');
   if (supplyChain.sbom) artifacts.sbom = path.join(outputDir, 'sbom.cdx.json');
   if (report.differential) artifacts.differential = path.join(outputDir, 'differential.json');
 
@@ -175,6 +230,7 @@ export async function scanRepository(options = {}) {
     atomicWrite(artifacts.supplyChain, `${JSON.stringify(supplyChain, null, 2)}\n`)
   ];
   if (artifacts.experiments) writes.push(atomicWrite(artifacts.experiments, `${JSON.stringify(report.experiments, null, 2)}\n`));
+  if (artifacts.causal) writes.push(atomicWrite(artifacts.causal, `${JSON.stringify(report.causal, null, 2)}\n`));
   if (artifacts.sbom) writes.push(atomicWrite(artifacts.sbom, `${JSON.stringify(supplyChain.sbom, null, 2)}\n`));
   if (artifacts.differential) writes.push(atomicWrite(artifacts.differential, `${JSON.stringify(report.differential, null, 2)}\n`));
   await Promise.all(writes);
@@ -229,6 +285,7 @@ async function resolveBaseline(options, root) {
         runtime: options.runtime ?? { mode: 'off' },
         supplyChain: options.supplyChain ?? { mode: 'offline' },
         experiments: options.experiments ?? { mode: 'off' },
+        causal: options.causal ?? { mode: 'off' },
         includeAbsolutePaths: false,
         scanId: `baseline-${options.baselineRef}`
       })).report;

@@ -1,6 +1,6 @@
 # RepoTrial architecture
 
-RepoTrial v0.5 is a provider-oriented evidence pipeline with deterministic trust calculation and a pure evidence-reasoning layer.
+RepoTrial v0.7 is a provider-oriented evidence pipeline with deterministic trust calculation, pure evidence reasoning, and an optional deterministic causal attack-synthesis layer.
 
 ```text
 Repository
@@ -32,7 +32,8 @@ Repository
 ## Boundaries
 
 - `src/core`: discovery, parser, rules, verdict, differential, redaction, report, SARIF, and orchestration.
-- `src/reasoning`: pure deterministic evidence graph, capability normalization, hypothesis evaluation, attack paths, epistemic state, confidence, and counterfactual remediation. It performs no filesystem, process, network, clock, random, or model calls.
+- `src/reasoning`: pure deterministic evidence graph, threat registry, causal graph, bounded attack-chain synthesis, epistemic state, confidence, and counterfactual remediation. It performs no filesystem, process, network, clock, random, or model calls.
+- `src/benchmark`: repository-native adversarial corpus metrics and deterministic replay gate.
 - `src/runtime`: disposable sandbox provider; never invoked implicitly outside configured runtime mode.
 - `src/supply`: lockfile inventory, CycloneDX, OSV, container normalization.
 - `src/bridge`: native surface construction and versioned ForgeOS client.
