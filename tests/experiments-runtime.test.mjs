@@ -78,7 +78,7 @@ test('filesystem scenario seeds only fixed sandbox-local sentinel paths', async 
   const sentinel = '.repotrial-experiment/sentinel-a.txt';
   const result = await runRuntimeScenario({
     root,
-    candidate: candidate(`node -e "require('fs').unlinkSync(${JSON.stringify(sentinel)})"`),
+    candidate: candidate(`node -e "require('fs').unlinkSync('${sentinel}')"`),
     scenario: {
       templateId: 'filesystem-sentinel-v1',
       envKeys: [],
@@ -87,6 +87,7 @@ test('filesystem scenario seeds only fixed sandbox-local sentinel paths', async 
     canarySeed: 'seed',
     timeoutMs: 3_000
   });
+  assert.equal(result.status, 'completed');
   assert.equal(result.sentinelPaths.every((item) => item.startsWith('.repotrial-experiment/')), true);
   assert.equal(result.run.filesystemChanges.some((item) => item.path === sentinel && item.change === 'deleted'), true);
 });
