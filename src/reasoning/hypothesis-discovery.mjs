@@ -60,7 +60,7 @@ export function discoverThreatHypotheses(input = {}) {
         continue;
       }
 
-      const evidence = evidenceCoherence(capabilities, index);
+      const evidence = evidenceCoherence(capabilities, index, candidateRealm);
       const state = candidateState(candidateRealm, evidence, noveltyScore, minNovelty);
       const severity = severityBound(capabilities, semantics);
       const semantic = { patternId: pattern.id, capabilities };
@@ -142,13 +142,19 @@ function indexObservedCapabilities(graph, realmIndex, semantics) {
   for (const ids of supportsByCapability.values()) ids.sort();
 
   const realmsByCapability = new Map();
-  const pathsByEvidenceId = new Map();
+  const evidenceRealmsById = new Map();
+  const anchorsByEvidenceId = new Map();
   for (const [capability, ids] of supportsByCapability) {
     const realms = new Set();
     for (const id of ids) {
       const entry = realmIndex?.byEvidenceId?.[id];
-      for (const realm of entry?.realms ?? (entry?.realm ? [entry.realm] : ['unknown'])) realms.add(realm);
-      pathsByEvidenceId.set(id, (entry?.anchors ?? []).map((anchor) => anchor.path).filter(Boolean).sort());
+      const evidenceRealms = [...new Set(entry?.realms ?? (entry?.realm ? [entry.realm] : ['unknown']))].sort();
+      for (const realm of evidenceRealms) realms.add(realm);
+      evidenceRealmsById.set(id, evidenceRealms);
+      anchorsByEvidenceId.set(id, (entry?.anchors ?? [])
+        .map((anchor) => ({ path: anchor?.path, realm: anchor?.realm ?? entry?.realm ?? 'unknown' }))
+        .filter((anchor) => typeof anchor.path === 'string' && anchor.path.length > 0)
+        .sort((a, b) => a.path.localeCompare(b.path) || a.realm.localeCompare(b.realm)));
     }
     realmsByCapability.set(capability, [...realms].sort());
   }
@@ -156,7 +162,8 @@ function indexObservedCapabilities(graph, realmIndex, semantics) {
     capabilities: [...supportsByCapability.keys()].sort(),
     supportsByCapability,
     realmsByCapability,
-    pathsByEvidenceId
+    evidenceRealmsById,
+    anchorsByEvidenceId
   };
 }
 
@@ -185,12 +192,20 @@ function candidateRealmAssessment(capabilities, index) {
   return { state: 'NON_PRODUCTION_ONLY', productionRelevant: false, realms: all, commonRealms };
 }
 
-function evidenceCoherence(capabilities, index) {
-  const evidenceSets = capabilities.map((capability) => new Set(index.supportsByCapability.get(capability) ?? []));
+function evidenceCoherence(capabilities, index, realmAssessment) {
+  const targetRealms = new Set(realmAssessment?.productionRelevant
+    ? ['production']
+    : (Array.isArray(realmAssessment?.commonRealms) && realmAssessment.commonRealms.length
+        ? realmAssessment.commonRealms
+        : ['unknown']));
+  const evidenceSets = capabilities.map((capability) => new Set((index.supportsByCapability.get(capability) ?? [])
+    .filter((id) => (index.evidenceRealmsById.get(id) ?? ['unknown']).some((realm) => targetRealms.has(realm)))));
   let shared = evidenceSets.length ? new Set(evidenceSets[0]) : new Set();
   for (const set of evidenceSets.slice(1)) shared = new Set([...shared].filter((id) => set.has(id)));
   const supportingEvidenceIds = [...new Set(evidenceSets.flatMap((set) => [...set]))].sort();
-  const pathSets = evidenceSets.map((set) => new Set([...set].flatMap((id) => index.pathsByEvidenceId.get(id) ?? [])));
+  const pathSets = evidenceSets.map((set) => new Set([...set].flatMap((id) => (index.anchorsByEvidenceId.get(id) ?? [])
+    .filter((anchor) => targetRealms.has(anchor.realm))
+    .map((anchor) => anchor.path))));
   let sharedPaths = pathSets.length ? new Set(pathSets[0]) : new Set();
   for (const set of pathSets.slice(1)) sharedPaths = new Set([...sharedPaths].filter((path) => set.has(path)));
   if (shared.size) return { corroboration: 'SHARED_EVIDENCE', score: 1, sharedEvidenceIds: [...shared].sort(), sharedPaths: [...sharedPaths].sort(), supportingEvidenceIds };

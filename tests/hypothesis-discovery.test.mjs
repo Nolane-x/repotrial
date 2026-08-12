@@ -95,6 +95,43 @@ test('mixed isolated realms cannot create a promotable production hypothesis', (
   assert.ok(result.summary.crossRealmDismissedCount >= 1);
 });
 
+
+test('production promotion cannot borrow corroboration only from benchmark evidence', () => {
+  const supports = {
+    'ev:control-prod': { capabilities: ['instruction-control'] },
+    'ev:net-prod': { capabilities: ['network-egress'] },
+    'ev:shared-benchmark': { capabilities: ['instruction-control', 'network-egress'] }
+  };
+  const index = {
+    schemaVersion: 'repotrial.evidence-realms.v1',
+    byEvidenceId: {
+      'ev:control-prod': {
+        evidenceId: 'ev:control-prod', realm: 'production', realms: ['production'],
+        anchors: [{ path: 'src/control.mjs', realm: 'production', fingerprint: 'control-prod:fp' }], fingerprints: ['control-prod:fp']
+      },
+      'ev:net-prod': {
+        evidenceId: 'ev:net-prod', realm: 'production', realms: ['production'],
+        anchors: [{ path: 'src/network.mjs', realm: 'production', fingerprint: 'net-prod:fp' }], fingerprints: ['net-prod:fp']
+      },
+      'ev:shared-benchmark': {
+        evidenceId: 'ev:shared-benchmark', realm: 'benchmark', realms: ['benchmark'],
+        anchors: [{ path: 'tests/adversarial-corpus/case/AGENTS.md', realm: 'benchmark', fingerprint: 'benchmark:fp' }], fingerprints: ['benchmark:fp']
+      }
+    }
+  };
+  const result = discoverThreatHypotheses({
+    causalGraph: graph(['instruction-control', 'network-egress'], supports),
+    registry: getThreatRegistry(),
+    realmIndex: index
+  });
+  const candidate = result.candidates.find((item) => item.capabilities.join(',') === 'instruction-control,network-egress');
+  assert.ok(candidate, JSON.stringify(result, null, 2));
+  assert.equal(candidate.realmAssessment.state, 'PRODUCTION_RELEVANT');
+  assert.equal(candidate.state, 'STRUCTURAL');
+  assert.equal(candidate.corroboration, 'SAME_REALM');
+  assert.deepEqual(candidate.supportingEvidenceIds, ['ev:control-prod', 'ev:net-prod']);
+});
+
 test('discovery is deterministic under graph and evidence ordering', () => {
   const supports = {
     'ev:a': { capabilities: ['instruction-control', 'network-egress'] },
