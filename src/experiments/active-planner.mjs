@@ -48,13 +48,15 @@ export function planActiveExperiments(input = {}) {
   }
 
   targets.sort(compareTargets);
-  const templateCentrality = new Map();
   const addressableChainIds = new Set(targets.map((item) => String(item.chain.id)));
+  const chainWeights = buildChainWeights(targets);
+  const totalAddressableWeight = [...addressableChainIds].reduce((sum, id) => sum + (chainWeights.get(id) ?? 1), 0);
+  const templateChains = new Map();
   for (const target of targets) {
     const key = target.template.id;
-    const set = templateCentrality.get(key) ?? new Set();
+    const set = templateChains.get(key) ?? new Set();
     set.add(String(target.chain.id));
-    templateCentrality.set(key, set);
+    templateChains.set(key, set);
   }
 
   const summaryBase = {
@@ -71,9 +73,13 @@ export function planActiveExperiments(input = {}) {
 
   const proposals = [];
   for (const target of targets) {
+    const coveredChains = templateChains.get(target.template.id) ?? new Set();
+    const coveredWeight = [...coveredChains].reduce((sum, id) => sum + (chainWeights.get(id) ?? 1), 0);
+    const centrality = totalAddressableWeight > 0 ? coveredWeight / totalAddressableWeight : 0;
     for (const candidate of candidates) {
       proposals.push(buildProposal(target, candidate, {
-        centrality: (templateCentrality.get(target.template.id)?.size ?? 0) / Math.max(1, addressableChainIds.size)
+        centrality,
+        coveredChainIds: [...coveredChains].sort()
       }));
     }
   }
@@ -113,6 +119,19 @@ export function planActiveExperiments(input = {}) {
   return finalize(selected, summary, maxExperiments, maxPerCandidate);
 }
 
+function buildChainWeights(targets) {
+  const weights = new Map();
+  for (const target of targets) {
+    const id = String(target.chain.id);
+    // Information that can close a critical chain should count more than the
+    // same observation on a lower-impact chain, while still giving every
+    // addressable chain a non-zero contribution.
+    const weight = 1 + severityRank(target.chain.severity ?? target.threat.severity);
+    weights.set(id, Math.max(weights.get(id) ?? 0, weight));
+  }
+  return weights;
+}
+
 function buildProposal(target, candidate, context) {
   const scenario = validateExperimentScenario({
     templateId: target.template.id,
@@ -141,6 +160,7 @@ function buildProposal(target, candidate, context) {
     severity: normalizedSeverity(target.chain.severity ?? target.threat.severity),
     targetStageIds: [target.stageId],
     targetCapabilities: target.targetCapabilities,
+    coveredChainIds: context.coveredChainIds,
     rationale: `Resolve causal stage ${target.stageId} in ${target.chain.threatId} with ${target.template.id}.`,
     candidate,
     scenario,
@@ -150,13 +170,16 @@ function buildProposal(target, candidate, context) {
 }
 
 function scoreProposal(input, redundancyPenalty) {
-  const executionEfficiency = 1 / Math.max(0.25, Number(input.executionCost));
-  const numerator = (0.26 * input.threatImpact)
+  // Execution cost is intentionally a soft penalty. A cheap probe that only
+  // resolves a narrow low-impact gap must not outrank a slightly more costly
+  // probe that discriminates several critical causal chains.
+  const benefit = (0.26 * input.threatImpact)
     + (0.2 * input.uncertainty)
     + (0.22 * input.chainCentrality)
     + (0.14 * input.discriminationPower)
     + (0.18 * input.expectedEvidenceStrength);
-  const rank = round6(1000 * numerator * executionEfficiency * redundancyPenalty);
+  const executionEfficiency = 1 / (1 + (0.25 * Math.max(0, Number(input.executionCost) - 0.7)));
+  const rank = round6(1000 * benefit * executionEfficiency * redundancyPenalty);
   return {
     rank,
     breakdown: {
@@ -166,6 +189,7 @@ function scoreProposal(input, redundancyPenalty) {
       discriminationPower: round6(input.discriminationPower),
       expectedEvidenceStrength: round6(input.expectedEvidenceStrength),
       executionCost: round6(input.executionCost),
+      executionEfficiency: round6(executionEfficiency),
       redundancyPenalty: round6(redundancyPenalty)
     },
     interpretation: 'expected-epistemic-value-not-safety-probability'
