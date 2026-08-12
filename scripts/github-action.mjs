@@ -13,7 +13,8 @@ const forgeMode = normalizeActionChoice(process.env.INPUT_FORGEOS_MODE, 'forgeos
 const forgeDepth = normalizeActionChoice(process.env.INPUT_FORGEOS_DEPTH, 'forgeos-depth', ['security', 'full'], 'security');
 const runtimeMode = normalizeActionChoice(process.env.INPUT_RUNTIME_MODE, 'runtime-mode', ['off', 'auto', 'sandbox'], 'off');
 const experimentMode = normalizeActionChoice(process.env.INPUT_EXPERIMENT_MODE, 'experiment-mode', ['off', 'plan', 'sandbox'], 'off');
-const causalMode = normalizeActionChoice(process.env.INPUT_CAUSAL_MODE, 'causal-mode', ['off', 'analyze', 'active'], 'off');
+const causalMode = normalizeActionChoice(process.env.INPUT_CAUSAL_MODE, 'causal-mode', ['off', 'analyze', 'discover', 'active'], 'off');
+const causalRealmScope = normalizeActionChoice(process.env.INPUT_CAUSAL_REALM_SCOPE, 'causal-realm-scope', ['all', 'production'], 'all');
 const supplyMode = normalizeActionChoice(process.env.INPUT_SUPPLY_CHAIN_MODE, 'supply-chain-mode', ['off', 'offline', 'osv'], 'offline');
 const experimentMaxRuns = positiveInteger(process.env.INPUT_EXPERIMENT_MAX_RUNS, 6, 'experiment-max-runs');
 const experimentMaxPerCandidate = positiveInteger(process.env.INPUT_EXPERIMENT_MAX_PER_CANDIDATE, 2, 'experiment-max-per-candidate');
@@ -24,6 +25,8 @@ const causalMaxDepth = positiveInteger(process.env.INPUT_CAUSAL_MAX_DEPTH, 8, 'c
 const causalMaxChains = positiveInteger(process.env.INPUT_CAUSAL_MAX_CHAINS, 64, 'causal-max-chains');
 const causalMaxRuns = positiveInteger(process.env.INPUT_CAUSAL_MAX_RUNS, 6, 'causal-max-runs');
 const causalMaxPerCandidate = positiveInteger(process.env.INPUT_CAUSAL_MAX_PER_CANDIDATE, 2, 'causal-max-per-candidate');
+const causalMaxDiscovered = positiveInteger(process.env.INPUT_CAUSAL_MAX_DISCOVERED, 32, 'causal-max-discovered');
+const causalMinNovelty = unitIntervalNumber(process.env.INPUT_CAUSAL_MIN_NOVELTY, 0.35, 'causal-min-novelty');
 const causalTimeout = process.env.INPUT_CAUSAL_TIMEOUT
   ? positiveInteger(process.env.INPUT_CAUSAL_TIMEOUT, 10_000, 'causal-timeout')
   : undefined;
@@ -61,10 +64,13 @@ const result = await scanRepository({
   },
   causal: {
     mode: causalMode,
+    realmScope: causalRealmScope,
     maxDepth: causalMaxDepth,
     maxChains: causalMaxChains,
     maxRuns: causalMaxRuns,
     maxPerCandidate: causalMaxPerCandidate,
+    maxDiscoveredHypotheses: causalMaxDiscovered,
+    minDiscoveryNovelty: causalMinNovelty,
     ...(causalTimeout ? { timeoutMs: causalTimeout } : {})
   },
   supplyChain: { mode: supplyMode, osvUrl: process.env.OSV_QUERYBATCH_URL },
@@ -102,8 +108,13 @@ await writeGithubOutput({
   new_invariant_violations: String(reasoningDelta?.newInvariantViolationCount ?? 0),
   causal_active_chains: String(causalSummary?.activeChainCount ?? 0),
   causal_high_impact_active_chains: String(causalSummary?.highImpactActiveChainCount ?? 0),
+  causal_production_active_chains: String(causalSummary?.productionActiveChainCount ?? 0),
+  causal_non_production_active_chains: String(causalSummary?.nonProductionActiveChainCount ?? 0),
+  discovered_hypotheses: String(causalSummary?.discoveredHypothesisCount ?? 0),
+  promotable_hypotheses: String(causalSummary?.promotableHypothesisCount ?? 0),
   new_causal_active_chains: String(causalDelta?.newActiveChainCount ?? 0),
   causal_path: result.artifacts.causal ?? '',
+  hypotheses_path: result.artifacts.hypotheses ?? '',
   experiments_status: report.experiments?.status ?? 'disabled',
   experiments_planned: String(experimentSummary?.plannedExperimentCount ?? 0),
   experiments_executed: String(experimentSummary?.executedExperimentCount ?? 0),
@@ -169,7 +180,12 @@ async function writeStepSummary(report, artifacts) {
     `| New viable attack paths | ${delta?.newViableAttackPathCount ?? 'not compared'} |\n` +
     `| New invariant violations | ${delta?.newInvariantViolationCount ?? 'not compared'} |\n` +
     `| Causal mode | ${report.causal?.mode ?? 'disabled'} |\n` +
+    `| Causal realm scope | ${report.causal?.realmScope ?? 'all'} |\n` +
     `| Active causal chains | ${causal?.activeChainCount ?? 0} |\n` +
+    `| Production-relevant causal chains | ${causal?.productionActiveChainCount ?? 0} |\n` +
+    `| Non-production causal chains | ${causal?.nonProductionActiveChainCount ?? 0} |\n` +
+    `| Discovered hypotheses | ${causal?.discoveredHypothesisCount ?? 0} |\n` +
+    `| Promotable hypotheses | ${causal?.promotableHypothesisCount ?? 0} |\n` +
     `| High-impact causal chains | ${causal?.highImpactActiveChainCount ?? 0} |\n` +
     `| New active causal chains | ${causalDelta?.newActiveChainCount ?? 'not compared'} |\n` +
     `| Runtime sandbox | ${report.runtime.status} |\n` +
@@ -180,10 +196,18 @@ async function writeStepSummary(report, artifacts) {
     `Portable report: \`${artifacts.report}\`\n\n` +
     `${artifacts.experiments ? `Adaptive experiments: \`${artifacts.experiments}\`\n\n` : ''}` +
     `${artifacts.causal ? `Causal analysis: \`${artifacts.causal}\`\n\n` : ''}` +
+    `${artifacts.hypotheses ? `Autonomous hypotheses: \`${artifacts.hypotheses}\`\n\n` : ''}` +
     `SARIF: \`${artifacts.sarif}\`\n\n` +
     `Artifact proof: \`${artifacts.proof}\`\n\n` +
     `Receipt: \`${report.receipt.sha256}\`\n`;
   await appendFile(filename, markdown);
+}
+
+function unitIntervalNumber(value, fallback, name) {
+  if (value == null || value === '') return fallback;
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0 || number > 1) throw new Error(`${name} must be a number between 0 and 1.`);
+  return number;
 }
 
 function positiveInteger(value, fallback, name) {

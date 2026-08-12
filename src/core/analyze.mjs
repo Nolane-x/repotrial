@@ -27,7 +27,7 @@ import { runCausalActiveExperiments } from '../experiments/causal-run.mjs';
 
 const PACKAGE_VERSION = JSON.parse(await readFile(new URL('../../package.json', import.meta.url), 'utf8')).version;
 const EXPERIMENT_MODES = new Set(['off', 'plan', 'sandbox']);
-const CAUSAL_MODES = new Set(['off', 'analyze', 'active']);
+const CAUSAL_MODES = new Set(['off', 'analyze', 'discover', 'active']);
 
 export async function scanRepository(options = {}) {
   const root = path.resolve(options.root ?? process.cwd());
@@ -38,7 +38,7 @@ export async function scanRepository(options = {}) {
   const experimentMode = String(options.experiments?.mode ?? 'off').toLowerCase();
   if (!EXPERIMENT_MODES.has(experimentMode)) throw new Error('Experiment mode must be off, plan, or sandbox.');
   const causalMode = String(options.causal?.mode ?? 'off').toLowerCase();
-  if (!CAUSAL_MODES.has(causalMode)) throw new Error('Causal mode must be off, analyze, or active.');
+  if (!CAUSAL_MODES.has(causalMode)) throw new Error('Causal mode must be off, analyze, discover, or active.');
 
   const outputInsideRoot = outputDir.startsWith(`${root}${path.sep}`);
   const excludedPaths = (options.discovery?.excludedPaths ?? []).map((entry) => path.resolve(root, entry));
@@ -134,7 +134,10 @@ export async function scanRepository(options = {}) {
       maxDepth: options.causal?.maxDepth,
       maxChains: options.causal?.maxChains,
       maxExperiments: options.causal?.maxRuns,
-      maxPerCandidate: options.causal?.maxPerCandidate
+      maxPerCandidate: options.causal?.maxPerCandidate,
+      realmScope: options.causal?.realmScope,
+      maxDiscoveredHypotheses: options.causal?.maxDiscoveredHypotheses,
+      minDiscoveryNovelty: options.causal?.minDiscoveryNovelty
     };
     const initialCausal = analyzeCausalEvidence(causalInput);
     if (causalMode === 'active') {
@@ -216,6 +219,7 @@ export async function scanRepository(options = {}) {
   };
   if (experiments) artifacts.experiments = path.join(outputDir, 'experiments.json');
   if (causal) artifacts.causal = path.join(outputDir, 'causal.json');
+  if (causal?.discovery) artifacts.hypotheses = path.join(outputDir, 'hypotheses.json');
   if (supplyChain.sbom) artifacts.sbom = path.join(outputDir, 'sbom.cdx.json');
   if (report.differential) artifacts.differential = path.join(outputDir, 'differential.json');
 
@@ -231,6 +235,7 @@ export async function scanRepository(options = {}) {
   ];
   if (artifacts.experiments) writes.push(atomicWrite(artifacts.experiments, `${JSON.stringify(report.experiments, null, 2)}\n`));
   if (artifacts.causal) writes.push(atomicWrite(artifacts.causal, `${JSON.stringify(report.causal, null, 2)}\n`));
+  if (artifacts.hypotheses) writes.push(atomicWrite(artifacts.hypotheses, `${JSON.stringify(report.causal.discovery, null, 2)}\n`));
   if (artifacts.sbom) writes.push(atomicWrite(artifacts.sbom, `${JSON.stringify(supplyChain.sbom, null, 2)}\n`));
   if (artifacts.differential) writes.push(atomicWrite(artifacts.differential, `${JSON.stringify(report.differential, null, 2)}\n`));
   await Promise.all(writes);

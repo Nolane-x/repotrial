@@ -44,7 +44,7 @@ async function scanCommand(args, io) {
     '--output', '--forgeos', '--forgeos-url', '--forgeos-token', '--forgeos-bin', '--forgeos-root', '--forgeos-depth',
     '--runtime', '--runtime-script', '--runtime-timeout', '--runtime-max-runs', '--runtime-max-source-files', '--runtime-max-source-bytes',
     '--experiments', '--experiment-max-runs', '--experiment-max-per-candidate', '--experiment-timeout',
-    '--causal', '--causal-max-depth', '--causal-max-chains', '--causal-max-runs', '--causal-max-per-candidate', '--causal-timeout',
+    '--causal', '--causal-max-depth', '--causal-max-chains', '--causal-max-runs', '--causal-max-per-candidate', '--causal-realm-scope', '--causal-max-discovered', '--causal-min-novelty', '--causal-timeout',
     '--supply-chain', '--osv-url', '--osv-timeout', '--container-scanner-command', '--container-scanner-args',
     '--baseline-report', '--baseline-ref', '--fail-on', '--fail-on-new', '--fail-on-reasoning', '--fail-on-new-reasoning', '--fail-on-causal', '--fail-on-new-causal',
     '--signing-key', '--signing-passphrase-env', '--cosign', '--cosign-key', '--cosign-bin',
@@ -58,7 +58,8 @@ async function scanCommand(args, io) {
   const forgeDepth = enumValue(parsed.values['--forgeos-depth'] ?? 'security', ['security', 'full'], '--forgeos-depth');
   const runtimeMode = enumValue(parsed.values['--runtime'] ?? 'off', ['off', 'auto', 'sandbox'], '--runtime');
   const experimentMode = enumValue(parsed.values['--experiments'] ?? 'off', ['off', 'plan', 'sandbox'], '--experiments');
-  const causalMode = enumValue(parsed.values['--causal'] ?? 'off', ['off', 'analyze', 'active'], '--causal');
+  const causalMode = enumValue(parsed.values['--causal'] ?? 'off', ['off', 'analyze', 'discover', 'active'], '--causal');
+  const causalRealmScope = enumValue(parsed.values['--causal-realm-scope'] ?? 'all', ['all', 'production'], '--causal-realm-scope');
   const supplyMode = enumValue(parsed.values['--supply-chain'] ?? 'offline', ['off', 'offline', 'osv'], '--supply-chain');
   const reasoningThreshold = parsed.values['--fail-on-reasoning'] ? normalizeReasoningThreshold(parsed.values['--fail-on-reasoning'], '--fail-on-reasoning') : null;
   const newReasoningThreshold = parsed.values['--fail-on-new-reasoning'] ? normalizeReasoningThreshold(parsed.values['--fail-on-new-reasoning'], '--fail-on-new-reasoning') : null;
@@ -100,10 +101,13 @@ async function scanCommand(args, io) {
     },
     causal: {
       mode: causalMode,
+      realmScope: causalRealmScope,
       ...(parsed.values['--causal-max-depth'] ? { maxDepth: positiveNumber(parsed.values['--causal-max-depth'], '--causal-max-depth') } : {}),
       ...(parsed.values['--causal-max-chains'] ? { maxChains: positiveNumber(parsed.values['--causal-max-chains'], '--causal-max-chains') } : {}),
       ...(parsed.values['--causal-max-runs'] ? { maxRuns: positiveNumber(parsed.values['--causal-max-runs'], '--causal-max-runs') } : {}),
       ...(parsed.values['--causal-max-per-candidate'] ? { maxPerCandidate: positiveNumber(parsed.values['--causal-max-per-candidate'], '--causal-max-per-candidate') } : {}),
+      ...(parsed.values['--causal-max-discovered'] ? { maxDiscoveredHypotheses: positiveNumber(parsed.values['--causal-max-discovered'], '--causal-max-discovered') } : {}),
+      ...(parsed.values['--causal-min-novelty'] !== undefined ? { minDiscoveryNovelty: unitIntervalNumber(parsed.values['--causal-min-novelty'], '--causal-min-novelty') } : {}),
       ...(parsed.values['--causal-timeout'] ? { timeoutMs: positiveNumber(parsed.values['--causal-timeout'], '--causal-timeout') } : {})
     },
     supplyChain: {
@@ -142,9 +146,14 @@ async function scanCommand(args, io) {
     runtime: result.report.runtime.status, supplyChain: result.report.supplyChain.status,
     experiments: result.report.experiments?.status ?? 'disabled',
     causal: result.report.causal?.mode ?? 'disabled',
+    causalRealmScope: result.report.causal?.realmScope ?? causalRealmScope,
     causalChains: causalSummary?.chainCount ?? 0,
     causalActiveChains: causalSummary?.activeChainCount ?? 0,
     causalHighImpactActiveChains: causalSummary?.highImpactActiveChainCount ?? 0,
+    causalProductionActiveChains: causalSummary?.productionActiveChainCount ?? 0,
+    causalNonProductionActiveChains: causalSummary?.nonProductionActiveChainCount ?? 0,
+    discoveredHypotheses: causalSummary?.discoveredHypothesisCount ?? 0,
+    promotableHypotheses: causalSummary?.promotableHypothesisCount ?? 0,
     causalNewActiveChains: causalDelta?.newActiveChainCount ?? 0,
     experimentsPlanned: experimentSummary?.plannedExperimentCount ?? 0,
     experimentsExecuted: experimentSummary?.executedExperimentCount ?? 0,
@@ -167,6 +176,7 @@ async function scanCommand(args, io) {
     outputDir, report: result.artifacts.report, badge: result.artifacts.badge, sarif: result.artifacts.sarif,
     experimentsArtifact: result.artifacts.experiments ?? null,
     causalArtifact: result.artifacts.causal ?? null,
+    hypothesesArtifact: result.artifacts.hypotheses ?? null,
     sbom: result.artifacts.sbom ?? null, proof: result.artifacts.proof, provenance: result.artifacts.provenance,
     attestation: result.artifacts.attestation ?? null, sigstore: result.artifacts.sigstore ?? null, receipt: result.report.receipt.sha256
   };
@@ -302,6 +312,7 @@ function parseOptions(args, allowed) {
 function enumValue(value, allowed, name) { const normalized = String(value).toLowerCase(); if (!allowed.includes(normalized)) throw new Error(`${name} must be ${allowed.join(', ')}.`); return normalized; }
 function normalizeThreshold(value) { const label = String(value).toUpperCase(); if (!['CAUTIOUS', 'RECKLESS', 'DANGEROUS'].includes(label)) throw new Error('Threshold must be cautious, reckless, or dangerous.'); return label; }
 function positiveNumber(value, name) { const number = Number(value); if (!Number.isInteger(number) || number <= 0) throw new Error(`${name} must be a positive integer.`); return number; }
+function unitIntervalNumber(value, name) { const number = Number(value); if (!Number.isFinite(number) || number < 0 || number > 1) throw new Error(`${name} must be a number between 0 and 1.`); return number; }
 function parseJsonArray(value, name) { let parsed; try { parsed = JSON.parse(value); } catch { throw new Error(`${name} must be a JSON array.`); } if (!Array.isArray(parsed) || parsed.some((item) => typeof item !== 'string')) throw new Error(`${name} must be a JSON array of strings.`); return parsed; }
 function commaSeparated(value) { return value ? String(value).split(',').map((item) => item.trim()).filter(Boolean) : []; }
 function printHumanSummary(summary, io) {
@@ -311,7 +322,8 @@ function printHumanSummary(summary, io) {
   io.log(`  Coverage:        ${Math.round(summary.coverage * 100)}% (${summary.filesInspected} files)`);
   io.log(`  Reasoning:       ${summary.viableAttackPaths} viable paths, ${summary.invariantViolations} invariant violations`);
   io.log(`  Experiments:     ${summary.experiments} (${summary.experimentsExecuted}/${summary.experimentsPlanned} executed, ${summary.experimentPositive} positive)`);
-  io.log(`  Causal:          ${summary.causal} (${summary.causalActiveChains}/${summary.causalChains} active, ${summary.causalHighImpactActiveChains} high-impact)`);
+  io.log(`  Causal:          ${summary.causal} [${summary.causalRealmScope}] (${summary.causalActiveChains}/${summary.causalChains} active, ${summary.causalProductionActiveChains} production, ${summary.causalNonProductionActiveChains} non-production)`);
+  if (summary.causal === 'discover' || summary.causal === 'active') io.log(`  Discovery:       ${summary.discoveredHypotheses} candidates, ${summary.promotableHypotheses} promotable`);
   io.log(`  Runtime:         ${summary.runtime}`);
   io.log(`  Supply chain:    ${summary.supplyChain}`);
   io.log(`  ForgeOS:         ${summary.forgeos}`);
@@ -355,11 +367,14 @@ Adaptive experiments:
   --experiment-timeout <ms>         Per-experiment wall-clock limit; reuses runtime timeout by default
 
 Causal adversarial reasoning:
-  --causal <mode>                   off | analyze | active (default: off)
+  --causal <mode>                   off | analyze | discover | active (default: off)
   --causal-max-depth <n>            Maximum causal chain depth (default: 8; hard cap: 16)
   --causal-max-chains <n>           Maximum retained causal chains (default: 64; hard cap: 256)
   --causal-max-runs <n>             Maximum active causal episodes (default: 6; hard cap: 32)
   --causal-max-per-candidate <n>     Maximum active probes per runtime candidate (default: 2; hard cap: 8)
+  --causal-realm-scope <scope>       all | production (default: all)
+  --causal-max-discovered <n>        Maximum autonomous hypothesis candidates (default: 32; hard cap: 128)
+  --causal-min-novelty <0..1>        Minimum novelty versus registered threats (default: 0.35)
   --causal-timeout <ms>             Per-phase active causal sandbox timeout
 
 Supply-chain analysis:

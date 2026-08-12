@@ -12,7 +12,8 @@ const schemas = [
   ['supply-chain.schema.json', 'repotrial.supply-chain.v1'],
   ['differential.schema.json', 'repotrial.differential.v1'],
   ['artifact-proof.schema.json', 'repotrial.artifact-proof.v1'],
-  ['causal.schema.json', 'repotrial.causal.v1'],
+  ['causal.schema.json', 'repotrial.causal.v2'],
+  ['hypotheses.schema.json', 'repotrial.hypothesis-discovery.v1'],
   ['threat-registry.schema.json', 'repotrial.threat-registry.v1']
 ];
 

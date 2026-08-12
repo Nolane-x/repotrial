@@ -286,7 +286,7 @@ function sortInvariants(items) {
 }
 
 function hasCausal(report) {
-  return report?.causal?.schemaVersion === 'repotrial.causal.v1';
+  return ['repotrial.causal.v1', 'repotrial.causal.v2'].includes(report?.causal?.schemaVersion);
 }
 
 function hasReasoning(report) {

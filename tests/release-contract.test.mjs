@@ -6,11 +6,11 @@ async function json(path) {
   return JSON.parse(await readFile(new URL(`../${path}`, import.meta.url), 'utf8'));
 }
 
-test('RepoTrial 0.7 package metadata points at the canonical Nolane-x repository', async () => {
+test('RepoTrial 0.8 package metadata points at the canonical Nolane-x repository', async () => {
   const pkg = await json('package.json');
   const lock = await json('package-lock.json');
 
-  assert.equal(pkg.version, '0.7.0');
+  assert.equal(pkg.version, '0.8.0');
   assert.equal(lock.version, pkg.version);
   assert.equal(lock.packages[''].version, pkg.version);
   assert.equal(Object.keys(pkg.dependencies ?? {}).length, 0);
@@ -41,4 +41,8 @@ test('analysis does not carry an independent hard-coded package version', async 
   const source = await readFile(new URL('../src/core/analyze.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /const VERSION\s*=\s*['\"]\d+\.\d+\.\d+['\"]/);
   assert.match(source, /PACKAGE_VERSION/);
+});
+test('generated RepoTrial output families are ignored instead of tracked as source', async () => {
+  const gitignore = await readFile(new URL('../.gitignore', import.meta.url), 'utf8');
+  assert.match(gitignore, /^\.repotrial\*\/$/m);
 });

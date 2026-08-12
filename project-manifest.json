@@ -1,38 +1,50 @@
 {
   "schemaVersion": "repotrial.project-manifest.v2",
   "project": "RepoTrial",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "releaseDate": "2026-08-12",
   "architecture": [
     "deterministic static and structured agent-surface analysis",
     "evidence reasoning with explicit epistemic states and invariants",
+    "evidence realms separating production, test, benchmark, fixture, docs, generated, vendor, and unknown evidence",
     "causal capability graph and bounded multi-chain synthesis",
+    "deterministic autonomous threat-hypothesis discovery with novelty and corroboration gates",
+    "transient fail-closed promotion without automatic built-in registry mutation",
     "active expected-information-gain probe policy",
     "bounded stateful adversarial episodes in the existing Linux sandbox",
-    "repository-native adversarial benchmark corpus",
+    "adversarial and autonomous-discovery benchmark gates",
     "supply-chain, provenance, signing, SARIF, and ForgeOS integration"
   ],
   "compatibility": {
     "node": ">=22.14",
     "runtimeDependencies": 0,
     "causalDefault": "off",
+    "causalRealmScopeDefault": "all",
     "legacyExitCodesPreserved": "0-5",
-    "causalExitCodes": { "currentRisk": 6, "regression": 7 }
+    "causalExitCodes": {
+      "currentRisk": 6,
+      "regression": 7
+    }
   },
   "securityInvariants": [
     "no real host secret enters an adaptive experiment or causal episode",
     "synthetic canary values are not persisted verbatim",
     "causal execution cannot weaken namespace/chroot/copied-rootfs/network/resource containment",
     "NOT_OBSERVED never becomes global proof of absence",
-    "causal reasoning is deterministic for identical normalized inputs",
+    "test, benchmark, fixture, docs, generated, and vendor evidence cannot silently become production causal risk",
+    "autonomous threat candidates never mutate the built-in threat registry automatically",
+    "PROMOTABLE means eligible for verification, not vulnerability proof",
+    "causal reasoning and autonomous discovery are deterministic for identical normalized inputs",
     "every satisfied causal hop retains evidence ancestry"
   ],
   "releaseGates": [
     "Node 22/24 tests and coverage",
     "repository-native adversarial benchmark",
+    "autonomous discovery benchmark and realm-isolation gate",
+    "self-dogfood production-realm regression",
     "schema and release contracts",
     "sandbox-capable episode tests where supported",
-    "npm pack",
+    "npm audit and npm pack",
     "Docker build/version E2E in CI",
     "self-scan and artifact proof/provenance verification"
   ]

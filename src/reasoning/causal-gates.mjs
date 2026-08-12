@@ -9,19 +9,30 @@ export function normalizeCausalThreshold(value, flag = 'causal gate') {
   return normalized;
 }
 
-export function causalMeetsSeverity(causal, threshold) {
-  if (!causal) return false;
-  const rank = severityRank(normalizeCausalThreshold(threshold));
-  return (causal.reasoning?.chains ?? []).some((item) =>
-    ACTIVE_STATES.has(item?.state) && severityRank(item?.severity) >= rank);
+export function normalizeCausalRealmScope(value, flag = 'causal realm scope') {
+  const normalized = String(value ?? 'all').trim().toLowerCase();
+  if (!['all', 'production'].includes(normalized)) throw new Error(`Invalid ${flag}: ${value}. Expected all or production.`);
+  return normalized;
 }
 
-export function causalDifferentialMeetsSeverity(causal, threshold) {
+export function causalMeetsSeverity(causal, threshold, options = {}) {
   if (!causal) return false;
   const rank = severityRank(normalizeCausalThreshold(threshold));
-  if ((causal.newActive ?? []).some((item) => severityRank(item?.severity) >= rank)) return true;
+  const scope = normalizeCausalRealmScope(options.realmScope ?? causal.realmScope ?? 'all');
+  return (causal.reasoning?.chains ?? []).some((item) =>
+    ACTIVE_STATES.has(item?.state)
+    && (scope !== 'production' || item?.realmAssessment?.productionRelevant === true)
+    && severityRank(item?.severity) >= rank);
+}
+
+export function causalDifferentialMeetsSeverity(causal, threshold, options = {}) {
+  if (!causal) return false;
+  const rank = severityRank(normalizeCausalThreshold(threshold));
+  const scope = normalizeCausalRealmScope(options.realmScope ?? causal.realmScope ?? 'all');
+  const relevant = (item) => scope !== 'production' || item?.realmAssessment?.productionRelevant === true || item?.productionRelevant === true;
+  if ((causal.newActive ?? []).some((item) => relevant(item) && severityRank(item?.severity) >= rank)) return true;
   return (causal.regressed ?? []).some((item) =>
-    ACTIVE_STATES.has(item?.to) && severityRank(item?.severity) >= rank);
+    relevant(item) && ACTIVE_STATES.has(item?.to) && severityRank(item?.severity) >= rank);
 }
 
 export function severityRank(value) {

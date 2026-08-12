@@ -1,6 +1,6 @@
 # RepoTrial architecture
 
-RepoTrial v0.7 is a provider-oriented evidence pipeline with deterministic trust calculation, pure evidence reasoning, and an optional deterministic causal attack-synthesis and active-verification layer.
+RepoTrial v0.8 is a provider-oriented evidence pipeline with deterministic trust calculation, pure evidence reasoning, evidence-realm isolation, deterministic causal attack synthesis, autonomous hypothesis discovery, and optional active verification.
 
 ```text
 Repository
@@ -63,6 +63,12 @@ Evidence reasoning consumes canonical post-provider charges, safeguards, coverag
 The evidence graph has `EVIDENCE`, `SAFEGUARD`, `CAPABILITY`, and `CLAIM` nodes. Stable SHA-256-derived identities make semantic elements comparable across scans. Threat hypotheses preserve explicit epistemic states: `PROVEN`, `SUPPORTED`, `CONTRADICTED`, `REFUTED`, `UNKNOWN`, and `UNTESTED`. Missing evidence is not evidence of absence; `REFUTED` requires explicit negative evidence rather than a clean scan.
 
 Legacy attack paths are ordered threat-model stages marked `VIABLE`, `PARTIAL`, or `BLOCKED`. Counterfactual remediation re-runs the pure reasoning core after removing one proven charge at a time and ranks evidence by modeled attack-path, hypothesis, and invariant impact. It is causal prioritization over the current evidence model, not a safety certification.
+
+## Autonomous discovery and realm boundary
+
+Before causal interpretation, positive evidence anchors are classified into deterministic realms: production, test, benchmark, fixture, docs, generated, vendor, or unknown. Chains remain visible across all realms, but production-only gates require production relevance or an explicit proven crossing. Mixed isolated realms are `CROSS_REALM_UNPROVEN`, not silently composable.
+
+`discover` mode adds a pure bounded hypothesis-discovery layer over observed capability semantics. Generic SOURCE/CONTROL/EXECUTION/PERSISTENCE/AUTHORITY/TOOL/SINK grammars propose novel compositions, compare them with the registered threat catalog, and attach novelty and corroboration scores. A `PROMOTABLE` candidate is only eligible for transient verification; it is never vulnerability proof and never mutates the built-in registry.
 
 ## Causal reasoning boundary
 

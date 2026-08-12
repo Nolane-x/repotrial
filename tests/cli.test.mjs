@@ -27,7 +27,8 @@ test('subcommand help lists all production scan controls', async () => {
   assert.equal(result.code, 0);
   for (const option of [
     '--runtime-max-source-files', '--runtime-max-source-bytes', '--container-scanner-command',
-    '--signing-passphrase-env', '--forgeos-root', '--allow-insecure-forgeos-http', '--max-total-bytes'
+    '--signing-passphrase-env', '--forgeos-root', '--allow-insecure-forgeos-http', '--max-total-bytes',
+    '--causal-realm-scope', '--causal-max-discovered', '--causal-min-novelty'
   ]) assert.match(result.stdout, new RegExp(option.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });
 
@@ -64,6 +65,32 @@ test('scan prints JSON summary and honors fail-on threshold', async () => {
   const payload = JSON.parse(result.stdout);
   assert.ok(['RECKLESS', 'DANGEROUS'].includes(payload.verdict));
   assert.equal(path.basename(payload.sarif), 'repotrial.sarif');
+});
+
+
+test('scan supports autonomous causal discovery with production realm scope', async () => {
+  const output = await mkdtemp(path.join(tmpdir(), 'repotrial-cli-discover-'));
+  const result = await run([
+    'scan', reckless,
+    '--output', output,
+    '--forgeos', 'off',
+    '--runtime', 'off',
+    '--supply-chain', 'offline',
+    '--causal', 'discover',
+    '--causal-realm-scope', 'production',
+    '--causal-max-discovered', '8',
+    '--causal-min-novelty', '0.35',
+    '--json'
+  ]);
+  assert.equal(result.code, 0, result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.causal, 'discover');
+  assert.equal(payload.causalRealmScope, 'production');
+  assert.equal(typeof payload.causalProductionActiveChains, 'number');
+  assert.equal(typeof payload.causalNonProductionActiveChains, 'number');
+  assert.equal(typeof payload.discoveredHypotheses, 'number');
+  assert.equal(typeof payload.promotableHypotheses, 'number');
+  assert.equal(path.basename(payload.hypothesesArtifact), 'hypotheses.json');
 });
 
 test('invalid command returns usage error', async () => {
