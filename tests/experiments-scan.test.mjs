@@ -60,5 +60,5 @@ test('plan mode writes an experiments artifact that is included in the artifact 
   });
   assert.ok((await stat(path.join(outputDir, 'experiments.json'))).isFile());
   assert.equal(result.artifacts.experiments, path.join(outputDir, 'experiments.json'));
-  assert.equal(result.proof.artifacts.some((item) => item.path === 'experiments.json'), true);
+  assert.equal(result.proof.artifacts.some((item) => item.name === 'experiments.json'), true);
 });
