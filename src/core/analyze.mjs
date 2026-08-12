@@ -14,14 +14,17 @@ import { redactSensitiveText, redactSensitiveValues } from './redact.mjs';
 import { compareReports, loadBaselineFromGit, readReport } from './diff.mjs';
 import { buildForgeOsManifest } from '../bridge/manifest.mjs';
 import { runForgeOsBridge } from '../bridge/forgeos.mjs';
-import { runRuntimeAnalysis } from '../runtime/sandbox.mjs';
+import { discoverRuntimeCandidates, runRuntimeAnalysis } from '../runtime/sandbox.mjs';
 import { analyzeSupplyChain } from '../supply/analyze.mjs';
 import { buildArtifactProof, buildProvenance } from '../integrity/provenance.mjs';
 import { signStatement } from '../integrity/sign.mjs';
 import { signWithCosign } from '../integrity/cosign.mjs';
 import { reasonAboutEvidence } from '../reasoning/engine.mjs';
+import { runAdaptiveExperiments } from '../experiments/run.mjs';
+import { buildEpistemicDelta } from '../experiments/delta.mjs';
 
 const PACKAGE_VERSION = JSON.parse(await readFile(new URL('../../package.json', import.meta.url), 'utf8')).version;
+const EXPERIMENT_MODES = new Set(['off', 'plan', 'sandbox']);
 
 export async function scanRepository(options = {}) {
   const root = path.resolve(options.root ?? process.cwd());
@@ -29,6 +32,8 @@ export async function scanRepository(options = {}) {
   if (outputDir === root) throw new Error('Output directory must not be the scan root.');
   const now = options.now ?? new Date().toISOString();
   const scanId = options.scanId ?? randomUUID();
+  const experimentMode = String(options.experiments?.mode ?? 'off').toLowerCase();
+  if (!EXPERIMENT_MODES.has(experimentMode)) throw new Error('Experiment mode must be off, plan, or sandbox.');
 
   const outputInsideRoot = outputDir.startsWith(`${root}${path.sep}`);
   const excludedPaths = (options.discovery?.excludedPaths ?? []).map((entry) => path.resolve(root, entry));
@@ -49,23 +54,64 @@ export async function scanRepository(options = {}) {
     runRuntimeAnalysis({ root, snapshot, ignoredPaths: providerIgnoredPaths, ...(options.runtime ?? { mode: 'off' }) }),
     analyzeSupplyChain({ root, ignoredPaths: providerIgnoredPaths, ...(options.supplyChain ?? { mode: 'offline' }) })
   ]);
-  const charges = [
+  const baseCharges = [
     ...local.charges,
     ...forgeos.findings.map((finding) => forgeFindingToCharge(finding, snapshot)),
     ...runtimeCharges(runtime, snapshot),
     ...supplyChainCharges(supplyChain, snapshot)
   ];
-  const verdict = calculateVerdict(charges, snapshot.coverage);
-  const reasoning = reasonAboutEvidence({
-    charges,
+  const providers = {
+    forgeos: { status: forgeos.status, mode: forgeos.mode },
+    runtime: { status: runtime.status, provider: runtime.provider },
+    supplyChain: { status: supplyChain.status, mode: supplyChain.mode }
+  };
+  const initialReasoning = reasonAboutEvidence({
+    charges: baseCharges,
     safeguards: local.safeguards,
     coverage: snapshot.coverage,
-    providers: {
-      forgeos: { status: forgeos.status, mode: forgeos.mode },
-      runtime: { status: runtime.status, provider: runtime.provider },
-      supplyChain: { status: supplyChain.status, mode: supplyChain.mode }
-    }
+    providers
   });
+
+  let experimentResult = null;
+  let experimentCharges = [];
+  if (experimentMode !== 'off') {
+    const candidates = await discoverRuntimeCandidates(
+      root,
+      options.runtime?.scripts ?? [],
+      snapshot,
+      { ignoredPaths: providerIgnoredPaths }
+    );
+    experimentResult = await runAdaptiveExperiments({
+      mode: experimentMode,
+      root,
+      snapshot,
+      reasoning: initialReasoning,
+      candidates,
+      scanId,
+      maxExperiments: options.experiments?.maxRuns,
+      maxPerCandidate: options.experiments?.maxPerCandidate,
+      timeoutMs: options.experiments?.timeoutMs ?? options.runtime?.timeoutMs,
+      maxSourceFiles: options.runtime?.maxSourceFiles,
+      maxSourceBytes: options.runtime?.maxSourceBytes,
+      ignoredPaths: providerIgnoredPaths
+    });
+    experimentCharges = experimentResult.charges;
+  }
+
+  const charges = [...baseCharges, ...experimentCharges];
+  const verdict = calculateVerdict(charges, snapshot.coverage);
+  const reasoning = experimentCharges.length
+    ? reasonAboutEvidence({ charges, safeguards: local.safeguards, coverage: snapshot.coverage, providers })
+    : initialReasoning;
+  let experiments = null;
+  if (experimentResult) {
+    const { charges: _internalCharges, ...publicExperimentResult } = experimentResult;
+    experiments = {
+      ...publicExperimentResult,
+      evidence: experimentCharges,
+      epistemicDelta: buildEpistemicDelta(initialReasoning, reasoning)
+    };
+  }
 
   const draft = {
     schemaVersion: 'repotrial.report.v2',
@@ -82,6 +128,7 @@ export async function scanRepository(options = {}) {
     charges,
     safeguards: local.safeguards,
     reasoning,
+    ...(experiments ? { experiments } : {}),
     forgeos,
     runtime,
     supplyChain: supplySummary(supplyChain),
@@ -113,6 +160,7 @@ export async function scanRepository(options = {}) {
     runtime: path.join(outputDir, 'runtime.json'),
     supplyChain: path.join(outputDir, 'supply-chain.json')
   };
+  if (experiments) artifacts.experiments = path.join(outputDir, 'experiments.json');
   if (supplyChain.sbom) artifacts.sbom = path.join(outputDir, 'sbom.cdx.json');
   if (report.differential) artifacts.differential = path.join(outputDir, 'differential.json');
 
@@ -126,6 +174,7 @@ export async function scanRepository(options = {}) {
     atomicWrite(artifacts.runtime, `${JSON.stringify(runtime, null, 2)}\n`),
     atomicWrite(artifacts.supplyChain, `${JSON.stringify(supplyChain, null, 2)}\n`)
   ];
+  if (artifacts.experiments) writes.push(atomicWrite(artifacts.experiments, `${JSON.stringify(report.experiments, null, 2)}\n`));
   if (artifacts.sbom) writes.push(atomicWrite(artifacts.sbom, `${JSON.stringify(supplyChain.sbom, null, 2)}\n`));
   if (artifacts.differential) writes.push(atomicWrite(artifacts.differential, `${JSON.stringify(report.differential, null, 2)}\n`));
   await Promise.all(writes);
@@ -179,6 +228,7 @@ async function resolveBaseline(options, root) {
         forgeos: options.forgeos ?? { mode: 'auto' },
         runtime: options.runtime ?? { mode: 'off' },
         supplyChain: options.supplyChain ?? { mode: 'offline' },
+        experiments: options.experiments ?? { mode: 'off' },
         includeAbsolutePaths: false,
         scanId: `baseline-${options.baselineRef}`
       })).report;
