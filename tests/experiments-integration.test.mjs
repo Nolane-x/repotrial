@@ -49,10 +49,10 @@ test('off mode performs no planning or execution and returns no charges', async 
   assert.equal(result.plan.experiments.length, 0);
 });
 
-test('plan mode produces a deterministic plan and executes nothing', async () => {
+test('plan mode produces a deterministic bounded plan and executes nothing', async () => {
   let executions = 0;
   const input = {
-    mode: 'plan', reasoning: partialReasoning(), candidates: [candidate], snapshot, scanId: 'scan:plan',
+    mode: 'plan', reasoning: partialReasoning(), candidates: [candidate], snapshot, scanId: 'scan:plan', maxExperiments: 1,
     executeBaseline: async () => { executions += 1; }, executeScenario: async () => { executions += 1; }
   };
   const first = await runAdaptiveExperiments(input);
@@ -67,7 +67,7 @@ test('plan mode produces a deterministic plan and executes nothing', async () =>
 
 test('sandbox unavailable is inconclusive and creates no positive charge', async () => {
   const result = await runAdaptiveExperiments({
-    mode: 'sandbox', reasoning: partialReasoning(), candidates: [candidate], snapshot, scanId: 'scan:unavailable',
+    mode: 'sandbox', reasoning: partialReasoning(), candidates: [candidate], snapshot, scanId: 'scan:unavailable', maxExperiments: 1,
     executeBaseline: async () => ({ status: 'unavailable', run: null, canaries: [] }),
     executeScenario: async () => ({ status: 'unavailable', reason: 'userns-disabled', run: null, canaries: [] })
   });
@@ -80,7 +80,7 @@ test('positive synthetic canary observation produces experiment evidence that cl
   const canary = 'rtx_internal_test_value';
   const initial = partialReasoning();
   const experiments = await runAdaptiveExperiments({
-    mode: 'sandbox', reasoning: initial, candidates: [candidate], snapshot, scanId: 'scan:positive',
+    mode: 'sandbox', reasoning: initial, candidates: [candidate], snapshot, scanId: 'scan:positive', maxExperiments: 1,
     executeBaseline: async () => ({
       status: 'completed', run: { status: 'completed', exitCode: 0, timedOut: false, outputTruncated: false, events: [], filesystemChanges: [], stdout: '', stderr: '' }, canaries: []
     }),
@@ -110,7 +110,7 @@ test('positive synthetic canary observation produces experiment evidence that cl
 test('NOT_OBSERVED experiment stays unresolved and creates no global absence', async () => {
   const initial = partialReasoning();
   const result = await runAdaptiveExperiments({
-    mode: 'sandbox', reasoning: initial, candidates: [candidate], snapshot, scanId: 'scan:not-observed',
+    mode: 'sandbox', reasoning: initial, candidates: [candidate], snapshot, scanId: 'scan:not-observed', maxExperiments: 1,
     executeBaseline: async () => ({ status: 'completed', run: { status: 'completed', events: [], filesystemChanges: [], stdout: '', stderr: '' }, canaries: [] }),
     executeScenario: async () => ({ status: 'completed', canaries: [], run: { status: 'completed', events: [], filesystemChanges: [], stdout: '', stderr: '' } })
   });
