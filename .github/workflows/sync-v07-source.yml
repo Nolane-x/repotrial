@@ -24,7 +24,7 @@ jobs:
             exit 0
           fi
           cat .repotrial-sync/chunk-* > /tmp/v07.patch.gz.b64
-          printf '%s  %s\n' '351d2827105cee5f53832be9aa2815c5ed4f2fb0ad23f48517e6488d8e1335e' '/tmp/v07.patch.gz.b64' | sha256sum -c -
+          printf '%s  %s\n' '351d2827105cee5f53832be9aa2815c5e5d4f2fb0ad23f48517e6488d8e1335e' '/tmp/v07.patch.gz.b64' | sha256sum -c -
           base64 -d /tmp/v07.patch.gz.b64 | gzip -d > /tmp/v07.patch
           printf '%s  %s\n' 'd427b3c7d584da5ea2397db5967ef60604cdfe5befce4c381574c76be729945f' '/tmp/v07.patch' | sha256sum -c -
           git apply --check /tmp/v07.patch
