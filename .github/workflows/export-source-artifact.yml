@@ -14,15 +14,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 96d8bd71663abd9dd65aa99eb2036b38f316002f
+          ref: be6eb319b4ef425f2028aad7ca4a0a3f0a12ade8
       - name: Record source identity
         run: |
-          printf '%s\n' '96d8bd71663abd9dd65aa99eb2036b38f316002f' > REPOTRIAL_SOURCE_COMMIT.txt
+          printf '%s\n' 'be6eb319b4ef425f2028aad7ca4a0a3f0a12ade8' > REPOTRIAL_SOURCE_COMMIT.txt
           git rev-parse HEAD > REPOTRIAL_CHECKED_OUT_COMMIT.txt
       - name: Upload complete project tree
         uses: actions/upload-artifact@v4
         with:
-          name: repotrial-v0.6.0-main-96d8bd7-complete
+          name: repotrial-v0.6.0-main-be6eb319-complete
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
