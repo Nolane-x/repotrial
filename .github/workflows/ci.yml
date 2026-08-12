@@ -5,35 +5,6 @@ on:
 permissions:
   contents: read
 jobs:
-  apply-review-fix-v08:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Verify and apply realm-scoped corroboration review fix
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ ! -f .repotrial-review-fix-v08.a ] || [ ! -f .repotrial-review-fix-v08.b ]; then
-            echo 'Review fix payload A/B is not staged; no-op.'
-            exit 0
-          fi
-          cat .repotrial-review-fix-v08.a .repotrial-review-fix-v08.b | tr -d '\r\n' > /tmp/v08-review-fix.patch.gz.b64
-          base64 -d /tmp/v08-review-fix.patch.gz.b64 > /tmp/v08-review-fix.patch.gz
-          gzip -dc /tmp/v08-review-fix.patch.gz > /tmp/v08-review-fix.patch
-          echo '9cdb043bc516f4093368937981cd32306e54a543e4060d0aff0f37ff95a55b2d  /tmp/v08-review-fix.patch' | sha256sum -c -
-          git apply --check /tmp/v08-review-fix.patch
-          git apply /tmp/v08-review-fix.patch
-          rm -f .repotrial-review-fix-v08.a .repotrial-review-fix-v08.b .repotrial-review-fix-v08.part0 .repotrial-review-fix-v08.part1 .repotrial-review-fix-v08.patch.gz.b64 .repotrial-review-fix-v08.trigger
-          git config user.name 'Nolane-x'
-          git config user.email 'casioreview20@gmail.com'
-          git add -A
-          git diff --cached --check
-          git commit -m 'fix: scope hypothesis corroboration to candidate evidence realm'
-          git push
   test:
     strategy:
       matrix:
