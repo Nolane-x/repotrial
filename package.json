@@ -1,7 +1,7 @@
 {
   "name": "repotrial",
-  "version": "0.5.0",
-  "description": "Evidence-backed static, runtime, supply-chain, differential, provenance, and reasoning analysis for AI-agent repositories.",
+  "version": "0.6.0",
+  "description": "Evidence-backed static, runtime, supply-chain, reasoning, and adaptive adversarial verification for AI-agent repositories.",
   "type": "module",
   "bin": {
     "repotrial": "./bin/repotrial.mjs"
@@ -19,6 +19,7 @@
     "docs/attestations.md",
     "docs/differential-analysis.md",
     "docs/evidence-reasoning.md",
+    "docs/adaptive-experiments.md",
     "docs/forgeos-bridge.md",
     "docs/runtime-sandbox.md",
     "docs/supply-chain.md",
@@ -45,6 +46,8 @@
   "keywords": [
     "ai-agent",
     "agent-security",
+    "adaptive-security",
+    "adversarial-testing",
     "security",
     "static-analysis",
     "runtime-sandbox",
