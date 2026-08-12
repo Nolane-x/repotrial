@@ -42,6 +42,7 @@ async function scanCommand(args, io) {
   const parsed = parseOptions(args, new Set([
     '--output', '--forgeos', '--forgeos-url', '--forgeos-token', '--forgeos-bin', '--forgeos-root', '--forgeos-depth',
     '--runtime', '--runtime-script', '--runtime-timeout', '--runtime-max-runs', '--runtime-max-source-files', '--runtime-max-source-bytes',
+    '--experiments', '--experiment-max-runs', '--experiment-max-per-candidate', '--experiment-timeout',
     '--supply-chain', '--osv-url', '--osv-timeout', '--container-scanner-command', '--container-scanner-args',
     '--baseline-report', '--baseline-ref', '--fail-on', '--fail-on-new', '--fail-on-reasoning', '--fail-on-new-reasoning',
     '--signing-key', '--signing-passphrase-env', '--cosign', '--cosign-key', '--cosign-bin',
@@ -54,6 +55,7 @@ async function scanCommand(args, io) {
   const forgeMode = enumValue(parsed.values['--forgeos'] ?? 'auto', ['auto', 'off', 'cli', 'http'], '--forgeos');
   const forgeDepth = enumValue(parsed.values['--forgeos-depth'] ?? 'security', ['security', 'full'], '--forgeos-depth');
   const runtimeMode = enumValue(parsed.values['--runtime'] ?? 'off', ['off', 'auto', 'sandbox'], '--runtime');
+  const experimentMode = enumValue(parsed.values['--experiments'] ?? 'off', ['off', 'plan', 'sandbox'], '--experiments');
   const supplyMode = enumValue(parsed.values['--supply-chain'] ?? 'offline', ['off', 'offline', 'osv'], '--supply-chain');
   const reasoningThreshold = parsed.values['--fail-on-reasoning'] ? normalizeReasoningThreshold(parsed.values['--fail-on-reasoning'], '--fail-on-reasoning') : null;
   const newReasoningThreshold = parsed.values['--fail-on-new-reasoning'] ? normalizeReasoningThreshold(parsed.values['--fail-on-new-reasoning'], '--fail-on-new-reasoning') : null;
@@ -85,6 +87,12 @@ async function scanCommand(args, io) {
       ...(parsed.values['--runtime-max-source-files'] ? { maxSourceFiles: positiveNumber(parsed.values['--runtime-max-source-files'], '--runtime-max-source-files') } : {}),
       ...(parsed.values['--runtime-max-source-bytes'] ? { maxSourceBytes: positiveNumber(parsed.values['--runtime-max-source-bytes'], '--runtime-max-source-bytes') } : {})
     },
+    experiments: {
+      mode: experimentMode,
+      ...(parsed.values['--experiment-max-runs'] ? { maxRuns: positiveNumber(parsed.values['--experiment-max-runs'], '--experiment-max-runs') } : {}),
+      ...(parsed.values['--experiment-max-per-candidate'] ? { maxPerCandidate: positiveNumber(parsed.values['--experiment-max-per-candidate'], '--experiment-max-per-candidate') } : {}),
+      ...(parsed.values['--experiment-timeout'] ? { timeoutMs: positiveNumber(parsed.values['--experiment-timeout'], '--experiment-timeout') } : {})
+    },
     supplyChain: {
       mode: supplyMode,
       osvUrl: parsed.values['--osv-url'],
@@ -107,6 +115,8 @@ async function scanCommand(args, io) {
 
   const reasoningSummary = result.report.reasoning?.summary;
   const reasoningDelta = result.report.differential?.reasoning?.summary;
+  const experimentSummary = result.report.experiments?.summary;
+  const epistemicSummary = result.report.experiments?.epistemicDelta?.summary;
   const summary = {
     schemaVersion: 'repotrial.cli.summary.v2',
     verdict: result.report.verdict.label, score: result.report.verdict.score,
@@ -115,6 +125,12 @@ async function scanCommand(args, io) {
     forgeos: result.report.forgeos.status, forgeosVersion: result.report.forgeos.engine?.version ?? null,
     forgeosTechnique: result.report.forgeos.remediationRoute?.steps?.[0]?.techniqueId ?? null,
     runtime: result.report.runtime.status, supplyChain: result.report.supplyChain.status,
+    experiments: result.report.experiments?.status ?? 'disabled',
+    experimentsPlanned: experimentSummary?.plannedExperimentCount ?? 0,
+    experimentsExecuted: experimentSummary?.executedExperimentCount ?? 0,
+    experimentPositive: experimentSummary?.positiveObservationCount ?? 0,
+    experimentCharges: experimentSummary?.experimentChargeCount ?? 0,
+    epistemicTransitions: (epistemicSummary?.hypothesisTransitionCount ?? 0) + (epistemicSummary?.attackPathTransitionCount ?? 0),
     newFindings: result.report.differential?.summary?.new ?? null,
     viableAttackPaths: reasoningSummary?.attackPathCounts?.VIABLE ?? 0,
     invariantViolations: reasoningSummary?.invariantViolationCount ?? 0,
@@ -129,6 +145,7 @@ async function scanCommand(args, io) {
       resolvedInvariantViolations: reasoningDelta.resolvedInvariantViolationCount
     } : null,
     outputDir, report: result.artifacts.report, badge: result.artifacts.badge, sarif: result.artifacts.sarif,
+    experimentsArtifact: result.artifacts.experiments ?? null,
     sbom: result.artifacts.sbom ?? null, proof: result.artifacts.proof, provenance: result.artifacts.provenance,
     attestation: result.artifacts.attestation ?? null, sigstore: result.artifacts.sigstore ?? null, receipt: result.report.receipt.sha256
   };
@@ -270,6 +287,7 @@ function printHumanSummary(summary, io) {
   io.log(`  Proven charges:  ${summary.provenCharges}`);
   io.log(`  Coverage:        ${Math.round(summary.coverage * 100)}% (${summary.filesInspected} files)`);
   io.log(`  Reasoning:       ${summary.viableAttackPaths} viable paths, ${summary.invariantViolations} invariant violations`);
+  io.log(`  Experiments:     ${summary.experiments} (${summary.experimentsExecuted}/${summary.experimentsPlanned} executed, ${summary.experimentPositive} positive)`);
   io.log(`  Runtime:         ${summary.runtime}`);
   io.log(`  Supply chain:    ${summary.supplyChain}`);
   io.log(`  ForgeOS:         ${summary.forgeos}`);
@@ -279,7 +297,7 @@ function printHumanSummary(summary, io) {
   io.log(`  Receipt:         ${summary.receipt}\n`);
 }
 function helpText() {
-  return `RepoTrial ${VERSION} — evidence-backed static, runtime, supply-chain, differential, reasoning, and ForgeOS analysis
+  return `RepoTrial ${VERSION} — evidence-backed static, runtime, supply-chain, adaptive experiments, differential, reasoning, and ForgeOS analysis
 
 Usage:
   repotrial scan [path] [options]
@@ -305,6 +323,12 @@ Runtime analysis:
   --runtime-max-runs <count>        Maximum detonated candidates
   --runtime-max-source-files <n>    Maximum files copied into the sandbox
   --runtime-max-source-bytes <n>    Maximum source bytes copied into the sandbox
+
+Adaptive experiments:
+  --experiments <mode>              off | plan | sandbox (default: off)
+  --experiment-max-runs <n>         Maximum targeted experiments (default: 6; hard cap: 32)
+  --experiment-max-per-candidate <n> Maximum experiments per runtime candidate (default: 2; hard cap: 8)
+  --experiment-timeout <ms>         Per-experiment wall-clock limit; reuses runtime timeout by default
 
 Supply-chain analysis:
   --supply-chain <mode>             off | offline | osv
