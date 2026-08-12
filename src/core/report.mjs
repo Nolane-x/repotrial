@@ -70,7 +70,7 @@ export function renderHtmlReport(report) {
       ${panels}
     </aside>
   </div>
-  <div class="legal">RepoTrial combines bounded static analysis, optional isolated runtime detonation, adaptive adversarial experiments, supply-chain evidence, differential analysis, evidence reasoning, invariant proof, explicit negative evidence, and optional ForgeOS enrichment. A TRUSTED verdict is not a security certification. Attack paths are evidence-backed models rather than proof of exploitation. `NOT_OBSERVED` in an adaptive experiment is local experiment evidence only and is not proof of absence; it never becomes global negative evidence.</div>
+  <div class="legal">RepoTrial combines bounded static analysis, optional isolated runtime detonation, adaptive adversarial experiments, supply-chain evidence, differential analysis, evidence reasoning, invariant proof, explicit negative evidence, and optional ForgeOS enrichment. A TRUSTED verdict is not a security certification. Attack paths are evidence-backed models rather than proof of exploitation. NOT_OBSERVED in an adaptive experiment is local experiment evidence only and is not proof of absence; it never becomes global negative evidence.</div>
   <footer class="footer"><span>Receipt SHA-256: <code>${escapeHtml(report.receipt.sha256)}</code></span><span>Schema ${escapeHtml(report.schemaVersion)}</span></footer>
 </main>
 <script type="application/json" id="repotrial-report">${rawJson}</script>
