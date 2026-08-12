@@ -2,6 +2,17 @@
 
 All notable changes are documented here.
 
+## 0.8.0 — 2026-08-12
+
+- Added deterministic Autonomous Threat Discovery that synthesizes bounded novel capability compositions without an LLM/runtime dependency or automatic registry mutation.
+- Added Evidence Realms (`production`, `test`, `benchmark`, `fixture`, `docs`, `generated`, `vendor`, `unknown`) and realm-aware causal interpretation/gating.
+- Added candidate states `STRUCTURAL`, `CORROBORATED`, `PROMOTABLE`, and `DISMISSED`, with explicit novelty, corroboration, evidence ancestry, and production-relevance metadata.
+- Added transient fail-closed promotion for sufficiently novel production-relevant hypotheses; `PROMOTABLE` remains a verification candidate, not vulnerability proof.
+- Added causal `discover` mode, `--causal-realm-scope`, bounded discovery budgets/novelty controls, CLI and GitHub Action outputs, `hypotheses.json`, schemas, HTML reporting, proof, and provenance binding.
+- Added a deterministic autonomous-discovery benchmark with novel-candidate recall, promotable precision, benign production false-positive rate, realm-isolation accuracy, and replay gates.
+- Added a self-dogfood regression proving RepoTrial's malicious benchmark/fixture code-execution chains stay visible but do not become production-active risk without a proven crossing.
+- Preserved zero npm runtime dependencies, existing legacy verdict semantics, causal exits 6/7, and `NOT_OBSERVED != ABSENT`.
+
 ## 0.7.0 — 2026-08-12
 
 - Added the Causal Adversarial Reasoning Engine with a receipt-bound declarative threat registry and 12 built-in repository/agentic threat families.

@@ -13,9 +13,9 @@ const fixture = path.join(here, 'fixtures', 'reckless-agent');
 
 async function text(relative) { return readFile(path.join(root, relative), 'utf8'); }
 
-test('RepoTrial 0.7 package and public API publish adaptive experiment capabilities', async () => {
+test('RepoTrial 0.8 package and public API publish adaptive experiment capabilities', async () => {
   const pkg = JSON.parse(await text('package.json'));
-  assert.equal(pkg.version, '0.7.0');
+  assert.equal(pkg.version, '0.8.0');
   assert.equal(Object.keys(pkg.dependencies ?? {}).length, 0);
   for (const name of [
     'planAdaptiveExperiments', 'getExperimentTemplate', 'validateExperimentScenario',

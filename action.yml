@@ -77,7 +77,7 @@ inputs:
     required: false
     default: ''
   causal-mode:
-    description: off, analyze, or active. Analyze is non-executing; active runs bounded synthetic adversarial episodes in the existing sandbox.
+    description: off, analyze, discover, or active. Analyze/discover are non-executing; active runs bounded synthetic adversarial episodes in the existing sandbox.
     required: false
     default: 'off'
   causal-max-depth:
@@ -96,6 +96,18 @@ inputs:
     description: Maximum active causal probes for one runtime candidate.
     required: false
     default: '2'
+  causal-realm-scope:
+    description: all or production. Production scope gates only production-relevant causal chains while keeping other realms visible.
+    required: false
+    default: 'all'
+  causal-max-discovered:
+    description: Maximum autonomous threat-hypothesis candidates retained by discovery.
+    required: false
+    default: '32'
+  causal-min-novelty:
+    description: Minimum novelty score from 0 to 1 versus registered threat definitions.
+    required: false
+    default: '0.35'
   causal-timeout:
     description: Optional per-phase causal episode timeout in milliseconds; empty reuses the runtime default.
     required: false
@@ -160,12 +172,27 @@ outputs:
   causal-high-impact-active-chains:
     description: Number of active high or critical causal attack chains.
     value: ${{ steps.scan.outputs.causal_high_impact_active_chains }}
+  causal-production-active-chains:
+    description: Number of active causal chains assessed as production relevant.
+    value: ${{ steps.scan.outputs.causal_production_active_chains }}
+  causal-non-production-active-chains:
+    description: Number of active causal chains supported only by non-production evidence realms.
+    value: ${{ steps.scan.outputs.causal_non_production_active_chains }}
+  discovered-hypotheses:
+    description: Number of autonomous threat-hypothesis candidates retained.
+    value: ${{ steps.scan.outputs.discovered_hypotheses }}
+  promotable-hypotheses:
+    description: Number of autonomous candidates eligible for transient verification promotion.
+    value: ${{ steps.scan.outputs.promotable_hypotheses }}
   new-causal-active-chains:
     description: Number of newly active causal chains since the baseline.
     value: ${{ steps.scan.outputs.new_causal_active_chains }}
   causal-path:
     description: Causal analysis JSON artifact path when causal analysis is enabled.
     value: ${{ steps.scan.outputs.causal_path }}
+  hypotheses-path:
+    description: Autonomous hypothesis discovery JSON artifact path when discovery is enabled.
+    value: ${{ steps.scan.outputs.hypotheses_path }}
   experiments-status:
     description: Adaptive experiment status or disabled.
     value: ${{ steps.scan.outputs.experiments_status }}
@@ -248,6 +275,9 @@ runs:
         INPUT_CAUSAL_MAX_CHAINS: ${{ inputs.causal-max-chains }}
         INPUT_CAUSAL_MAX_RUNS: ${{ inputs.causal-max-runs }}
         INPUT_CAUSAL_MAX_PER_CANDIDATE: ${{ inputs.causal-max-per-candidate }}
+        INPUT_CAUSAL_REALM_SCOPE: ${{ inputs.causal-realm-scope }}
+        INPUT_CAUSAL_MAX_DISCOVERED: ${{ inputs.causal-max-discovered }}
+        INPUT_CAUSAL_MIN_NOVELTY: ${{ inputs.causal-min-novelty }}
         INPUT_CAUSAL_TIMEOUT: ${{ inputs.causal-timeout }}
         INPUT_SUPPLY_CHAIN_MODE: ${{ inputs.supply-chain-mode }}
         INPUT_SIGNING_KEY: ${{ inputs.signing-key }}

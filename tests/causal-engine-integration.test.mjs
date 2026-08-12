@@ -21,7 +21,7 @@ test('causal engine is deterministic and synthesizes multi-stage chains from can
   const a = analyzeCausalEvidence({ charges, reasoning, coverage: { ratio: 1, complete: true }, mode: 'analyze' });
   const b = analyzeCausalEvidence({ charges: [...charges].reverse(), reasoning, coverage: { ratio: 1, complete: true }, mode: 'analyze' });
   assert.deepEqual(a, b);
-  assert.equal(a.schemaVersion, 'repotrial.causal.v1');
+  assert.equal(a.schemaVersion, 'repotrial.causal.v2');
   assert.equal(a.mode, 'analyze');
   assert.equal(a.reasoning.chains.some((item) => item.threatId === 'credential-exfiltration' && ['PROVEN', 'SUPPORTED'].includes(item.state)), true);
   assert.match(a.receipt, /^[a-f0-9]{64}$/);
@@ -39,7 +39,7 @@ test('causal off preserves 0.6 report shape while analyze writes a proof-bound c
 
   const analyzeDir = path.join(root, '.out-analyze');
   const analyzed = await scanRepository({ root, outputDir: analyzeDir, forgeos: { mode: 'off' }, runtime: { mode: 'off' }, supplyChain: { mode: 'off' }, causal: { mode: 'analyze' }, scanId: 'causal-analyze', now: '2026-08-12T00:00:00.000Z' });
-  assert.equal(analyzed.report.causal.schemaVersion, 'repotrial.causal.v1');
+  assert.equal(analyzed.report.causal.schemaVersion, 'repotrial.causal.v2');
   assert.ok(analyzed.artifacts.causal.endsWith('causal.json'));
   const causalArtifact = JSON.parse(await readFile(analyzed.artifacts.causal, 'utf8'));
   assert.equal(causalArtifact.receipt, analyzed.report.causal.receipt);

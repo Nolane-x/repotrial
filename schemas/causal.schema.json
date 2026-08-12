@@ -1,12 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://repotrial.dev/schemas/causal.schema.json",
-  "title": "RepoTrial Causal Adversarial Reasoning",
+  "title": "RepoTrial Causal Adversarial Reasoning v2",
   "type": "object",
-  "required": ["schemaVersion", "mode", "registry", "graph", "reasoning", "summary", "receipt"],
+  "required": ["schemaVersion", "mode", "realmScope", "registry", "realms", "graph", "reasoning", "summary", "receipt"],
   "properties": {
-    "schemaVersion": { "const": "repotrial.causal.v1" },
-    "mode": { "enum": ["analyze", "active"] },
+    "schemaVersion": { "const": "repotrial.causal.v2" },
+    "mode": { "enum": ["analyze", "discover", "active"] },
+    "realmScope": { "enum": ["all", "production"] },
     "registry": {
       "type": "object",
       "required": ["schemaVersion", "receipt", "definitionCount"],
@@ -17,22 +18,41 @@
       },
       "additionalProperties": false
     },
+    "realms": {
+      "type": "object",
+      "required": ["schemaVersion", "byEvidenceId", "summary", "receipt"],
+      "properties": {
+        "schemaVersion": { "const": "repotrial.evidence-realms.v1" },
+        "byEvidenceId": { "type": "object" },
+        "summary": { "type": "object" },
+        "receipt": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
     "graph": { "type": "object", "required": ["schemaVersion", "nodes", "edges", "receipt"] },
     "reasoning": { "type": "object", "required": ["schemaVersion", "chains", "summary", "receipt"] },
+    "discovery": { "$ref": "./hypotheses.schema.json" },
     "activePlan": { "type": "object" },
     "activeRun": { "type": "object" },
     "epistemicDelta": { "type": "object" },
     "summary": {
       "type": "object",
-      "required": ["chainCount", "activeChainCount", "highImpactActiveChainCount", "partialChainCount", "maximumActiveSeverity", "plannedActiveExperimentCount", "registryThreatCount"],
+      "required": ["chainCount", "activeChainCount", "productionActiveChainCount", "nonProductionActiveChainCount", "crossRealmUnprovenActiveChainCount", "highImpactActiveChainCount", "highImpactProductionActiveChainCount", "partialChainCount", "maximumActiveSeverity", "maximumProductionActiveSeverity", "plannedActiveExperimentCount", "registryThreatCount", "discoveredHypothesisCount", "promotableHypothesisCount"],
       "properties": {
         "chainCount": { "type": "integer", "minimum": 0 },
         "activeChainCount": { "type": "integer", "minimum": 0 },
+        "productionActiveChainCount": { "type": "integer", "minimum": 0 },
+        "nonProductionActiveChainCount": { "type": "integer", "minimum": 0 },
+        "crossRealmUnprovenActiveChainCount": { "type": "integer", "minimum": 0 },
         "highImpactActiveChainCount": { "type": "integer", "minimum": 0 },
+        "highImpactProductionActiveChainCount": { "type": "integer", "minimum": 0 },
         "partialChainCount": { "type": "integer", "minimum": 0 },
         "maximumActiveSeverity": { "enum": ["info", "low", "medium", "high", "critical"] },
+        "maximumProductionActiveSeverity": { "enum": ["info", "low", "medium", "high", "critical"] },
         "plannedActiveExperimentCount": { "type": "integer", "minimum": 0 },
-        "registryThreatCount": { "type": "integer", "minimum": 1 }
+        "registryThreatCount": { "type": "integer", "minimum": 1 },
+        "discoveredHypothesisCount": { "type": "integer", "minimum": 0 },
+        "promotableHypothesisCount": { "type": "integer", "minimum": 0 }
       },
       "additionalProperties": true
     },

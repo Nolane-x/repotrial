@@ -1,5 +1,6 @@
 node_modules/
 .repotrial/
+.repotrial*/
 coverage/
 *.tgz
 .DS_Store

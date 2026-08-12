@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repotrial.dev/schemas/hypotheses.schema.json",
+  "title": "RepoTrial Autonomous Threat Hypothesis Discovery",
+  "type": "object",
+  "required": ["schemaVersion", "limits", "candidates", "summary", "receipt"],
+  "properties": {
+    "schemaVersion": { "const": "repotrial.hypothesis-discovery.v1" },
+    "limits": {
+      "type": "object",
+      "required": ["maxCandidates", "hardMaxCandidates", "minNovelty"],
+      "properties": {
+        "maxCandidates": { "type": "integer", "minimum": 1, "maximum": 128 },
+        "hardMaxCandidates": { "const": 128 },
+        "minNovelty": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "candidates": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "category", "patternId", "state", "severity", "capabilities", "stages", "supportingEvidenceIds", "corroboration", "corroborationScore", "realmAssessment", "knownThreatSimilarity", "noveltyScore", "promotable", "caveat"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^hyp:auto:[a-f0-9]{24}$" },
+          "title": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "category": { "const": "autonomous-discovery" },
+          "patternId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "state": { "enum": ["STRUCTURAL", "CORROBORATED", "PROMOTABLE", "DISMISSED"] },
+          "severity": { "enum": ["info", "low", "medium", "high", "critical"] },
+          "capabilities": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+          },
+          "stages": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "required": ["id", "order", "capability"],
+              "properties": {
+                "id": { "type": "string" },
+                "order": { "type": "integer", "minimum": 0, "maximum": 3 },
+                "capability": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "supportingEvidenceIds": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+          "corroboration": { "enum": ["SHARED_EVIDENCE", "SAME_FILE", "SAME_REALM", "EXPLICIT_CROSSING", "RUNTIME_CAUSAL_TRACE"] },
+          "corroborationScore": { "type": "number", "minimum": 0, "maximum": 1 },
+          "sharedEvidenceIds": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "sharedPaths": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "realmAssessment": {
+            "type": "object",
+            "required": ["state", "productionRelevant", "realms", "commonRealms"],
+            "properties": {
+              "state": { "enum": ["PRODUCTION_RELEVANT", "NON_PRODUCTION_ONLY", "CROSS_REALM_UNPROVEN", "UNKNOWN_REALM"] },
+              "productionRelevant": { "type": "boolean" },
+              "realms": { "type": "array", "items": { "enum": ["production", "test", "benchmark", "fixture", "docs", "generated", "vendor", "unknown"] }, "uniqueItems": true },
+              "commonRealms": { "type": "array", "items": { "enum": ["production", "test", "benchmark", "fixture", "docs", "generated", "vendor", "unknown"] }, "uniqueItems": true }
+            },
+            "additionalProperties": false
+          },
+          "nearestThreatId": { "type": ["string", "null"] },
+          "knownThreatSimilarity": { "type": "number", "minimum": 0, "maximum": 1 },
+          "noveltyScore": { "type": "number", "minimum": 0, "maximum": 1 },
+          "promotable": { "type": "boolean" },
+          "caveat": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": true
+      }
+    },
+    "summary": { "type": "object" },
+    "receipt": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "additionalProperties": false
+}

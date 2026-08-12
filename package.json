@@ -1,7 +1,7 @@
 {
   "name": "repotrial",
-  "version": "0.7.0",
-  "description": "Deterministic evidence reasoning, causal attack synthesis, active adversarial verification, runtime, and supply-chain security for AI-agent repositories.",
+  "version": "0.8.0",
+  "description": "Deterministic evidence reasoning, causal attack synthesis, autonomous threat discovery, evidence realms, active verification, runtime, and supply-chain security for AI-agent repositories.",
   "type": "module",
   "bin": {
     "repotrial": "./bin/repotrial.mjs"
@@ -31,7 +31,8 @@
     "CHANGELOG.md",
     "CONTRIBUTING.md",
     "docs/causal-adversarial-reasoning.md",
-    "tests/adversarial-corpus"
+    "tests/adversarial-corpus",
+    "docs/autonomous-threat-discovery.md"
   ],
   "engines": {
     "node": ">=22.14"
@@ -44,7 +45,8 @@
     "start": "node bin/repotrial.mjs serve .repotrial",
     "package:check": "npm pack --dry-run",
     "verify:forgeos": "node scripts/verify-forgeos-integration.mjs",
-    "benchmark:adversarial": "node scripts/benchmark-adversarial.mjs"
+    "benchmark:adversarial": "node scripts/benchmark-adversarial.mjs",
+    "benchmark:discovery": "node scripts/benchmark-discovery.mjs"
   },
   "keywords": [
     "ai-agent",
@@ -70,7 +72,10 @@
     "attack-chain",
     "active-verification",
     "agentic-security",
-    "security-benchmark"
+    "security-benchmark",
+    "autonomous-threat-discovery",
+    "evidence-realms",
+    "security-reasoning"
   ],
   "repository": {
     "type": "git",

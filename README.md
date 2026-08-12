@@ -12,9 +12,9 @@ Static evidence · Evidence Graph · Causal Capability Graph · Multi-Chain Synt
 
 RepoTrial is a zero-runtime-dependency security and trust analysis engine for AI-agent repositories. It does not certify a repository as “safe”. It creates a reproducible case file containing what was inspected, what was omitted, what was proven, how capabilities compose into attacks, which conclusions remain uncertain, and what changed relative to a baseline.
 
-## RepoTrial 0.7
+## RepoTrial 0.8
 
-0.7 adds the **Causal Adversarial Reasoning Engine** on top of the 0.5 evidence-reasoning system and the 0.6 adaptive experiment engine.
+0.8 adds **Autonomous Threat Discovery + Evidence Realms** on top of the 0.7 Causal Adversarial Reasoning Engine. It can discover bounded novel capability compositions while separating production evidence from test, benchmark, fixture, documentation, generated, and vendor realms.
 
 ```text
 repository evidence
@@ -49,6 +49,14 @@ npm install
 node bin/repotrial.mjs scan path/to/repo --forgeos off
 node bin/repotrial.mjs serve .repotrial
 ```
+
+Autonomous discovery without execution:
+
+```bash
+repotrial scan . --causal discover --causal-realm-scope production --causal-max-discovered 32 --causal-min-novelty 0.35
+```
+
+A discovered hypothesis is a **candidate, not proven** vulnerability. `PROMOTABLE` means it passed deterministic novelty/corroboration/realm gates and can be verified further; it never mutates the built-in threat registry. See `docs/autonomous-threat-discovery.md`.
 
 Causal analysis without execution:
 

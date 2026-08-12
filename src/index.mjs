@@ -34,3 +34,8 @@ export { generateSigningKeyPair, signStatement, verifyEnvelope, pae } from './in
 export { signWithCosign, verifyWithCosign } from './integrity/cosign.mjs';
 export { buildArtifactProof, verifyArtifactProof, verifyProvenanceBinding, evaluateReportInvariants, buildProvenance } from './integrity/provenance.mjs';
 export { createReportServer } from './server.mjs';
+export { classifyEvidencePath, buildEvidenceRealmIndex, assessChainRealm } from './reasoning/evidence-realms.mjs';
+export { getCapabilitySemantics } from './reasoning/capability-semantics.mjs';
+export { discoverThreatHypotheses } from './reasoning/hypothesis-discovery.mjs';
+export { promoteDiscoveredHypothesis } from './reasoning/hypothesis-promotion.mjs';
+export { runDiscoveryBenchmark, getDiscoveryBenchmarkCases } from './benchmark/discovery-corpus.mjs';
