@@ -11,7 +11,9 @@ const schemas = [
   ['runtime.schema.json', 'repotrial.runtime.v1'],
   ['supply-chain.schema.json', 'repotrial.supply-chain.v1'],
   ['differential.schema.json', 'repotrial.differential.v1'],
-  ['artifact-proof.schema.json', 'repotrial.artifact-proof.v1']
+  ['artifact-proof.schema.json', 'repotrial.artifact-proof.v1'],
+  ['causal.schema.json', 'repotrial.causal.v1'],
+  ['threat-registry.schema.json', 'repotrial.threat-registry.v1']
 ];
 
 test('published JSON schemas are valid JSON and declare current contract versions', async () => {

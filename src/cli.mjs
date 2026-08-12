@@ -13,6 +13,7 @@ import { verifyWithCosign } from './integrity/cosign.mjs';
 import { createReportServer } from './server.mjs';
 import { stableStringify } from './core/hash.mjs';
 import { normalizeReasoningThreshold, reasoningMeetsSeverity, reasoningDifferentialMeetsSeverity } from './reasoning/gates.mjs';
+import { normalizeCausalThreshold, causalMeetsSeverity, causalDifferentialMeetsSeverity } from './reasoning/causal-gates.mjs';
 
 const VERSION = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version;
 
@@ -43,8 +44,9 @@ async function scanCommand(args, io) {
     '--output', '--forgeos', '--forgeos-url', '--forgeos-token', '--forgeos-bin', '--forgeos-root', '--forgeos-depth',
     '--runtime', '--runtime-script', '--runtime-timeout', '--runtime-max-runs', '--runtime-max-source-files', '--runtime-max-source-bytes',
     '--experiments', '--experiment-max-runs', '--experiment-max-per-candidate', '--experiment-timeout',
+    '--causal', '--causal-max-depth', '--causal-max-chains', '--causal-max-runs', '--causal-max-per-candidate', '--causal-timeout',
     '--supply-chain', '--osv-url', '--osv-timeout', '--container-scanner-command', '--container-scanner-args',
-    '--baseline-report', '--baseline-ref', '--fail-on', '--fail-on-new', '--fail-on-reasoning', '--fail-on-new-reasoning',
+    '--baseline-report', '--baseline-ref', '--fail-on', '--fail-on-new', '--fail-on-reasoning', '--fail-on-new-reasoning', '--fail-on-causal', '--fail-on-new-causal',
     '--signing-key', '--signing-passphrase-env', '--cosign', '--cosign-key', '--cosign-bin',
     '--builder-id', '--repository-url', '--commit', '--json', '--quiet', '--include-absolute-paths',
     '--allow-insecure-forgeos-http', '--exclude', '--max-files', '--max-file-bytes', '--max-total-bytes'
@@ -56,9 +58,12 @@ async function scanCommand(args, io) {
   const forgeDepth = enumValue(parsed.values['--forgeos-depth'] ?? 'security', ['security', 'full'], '--forgeos-depth');
   const runtimeMode = enumValue(parsed.values['--runtime'] ?? 'off', ['off', 'auto', 'sandbox'], '--runtime');
   const experimentMode = enumValue(parsed.values['--experiments'] ?? 'off', ['off', 'plan', 'sandbox'], '--experiments');
+  const causalMode = enumValue(parsed.values['--causal'] ?? 'off', ['off', 'analyze', 'active'], '--causal');
   const supplyMode = enumValue(parsed.values['--supply-chain'] ?? 'offline', ['off', 'offline', 'osv'], '--supply-chain');
   const reasoningThreshold = parsed.values['--fail-on-reasoning'] ? normalizeReasoningThreshold(parsed.values['--fail-on-reasoning'], '--fail-on-reasoning') : null;
   const newReasoningThreshold = parsed.values['--fail-on-new-reasoning'] ? normalizeReasoningThreshold(parsed.values['--fail-on-new-reasoning'], '--fail-on-new-reasoning') : null;
+  const causalThreshold = parsed.values['--fail-on-causal'] ? normalizeCausalThreshold(parsed.values['--fail-on-causal'], '--fail-on-causal') : null;
+  const newCausalThreshold = parsed.values['--fail-on-new-causal'] ? normalizeCausalThreshold(parsed.values['--fail-on-new-causal'], '--fail-on-new-causal') : null;
   const signingKey = parsed.values['--signing-key'];
   const passphraseEnv = parsed.values['--signing-passphrase-env'];
   if (passphraseEnv && !signingKey) throw new Error('--signing-passphrase-env requires --signing-key.');
@@ -93,6 +98,14 @@ async function scanCommand(args, io) {
       ...(parsed.values['--experiment-max-per-candidate'] ? { maxPerCandidate: positiveNumber(parsed.values['--experiment-max-per-candidate'], '--experiment-max-per-candidate') } : {}),
       ...(parsed.values['--experiment-timeout'] ? { timeoutMs: positiveNumber(parsed.values['--experiment-timeout'], '--experiment-timeout') } : {})
     },
+    causal: {
+      mode: causalMode,
+      ...(parsed.values['--causal-max-depth'] ? { maxDepth: positiveNumber(parsed.values['--causal-max-depth'], '--causal-max-depth') } : {}),
+      ...(parsed.values['--causal-max-chains'] ? { maxChains: positiveNumber(parsed.values['--causal-max-chains'], '--causal-max-chains') } : {}),
+      ...(parsed.values['--causal-max-runs'] ? { maxRuns: positiveNumber(parsed.values['--causal-max-runs'], '--causal-max-runs') } : {}),
+      ...(parsed.values['--causal-max-per-candidate'] ? { maxPerCandidate: positiveNumber(parsed.values['--causal-max-per-candidate'], '--causal-max-per-candidate') } : {}),
+      ...(parsed.values['--causal-timeout'] ? { timeoutMs: positiveNumber(parsed.values['--causal-timeout'], '--causal-timeout') } : {})
+    },
     supplyChain: {
       mode: supplyMode,
       osvUrl: parsed.values['--osv-url'],
@@ -116,6 +129,8 @@ async function scanCommand(args, io) {
   const reasoningSummary = result.report.reasoning?.summary;
   const reasoningDelta = result.report.differential?.reasoning?.summary;
   const experimentSummary = result.report.experiments?.summary;
+  const causalSummary = result.report.causal?.summary;
+  const causalDelta = result.report.differential?.causal?.summary;
   const epistemicSummary = result.report.experiments?.epistemicDelta?.summary;
   const summary = {
     schemaVersion: 'repotrial.cli.summary.v2',
@@ -126,6 +141,11 @@ async function scanCommand(args, io) {
     forgeosTechnique: result.report.forgeos.remediationRoute?.steps?.[0]?.techniqueId ?? null,
     runtime: result.report.runtime.status, supplyChain: result.report.supplyChain.status,
     experiments: result.report.experiments?.status ?? 'disabled',
+    causal: result.report.causal?.mode ?? 'disabled',
+    causalChains: causalSummary?.chainCount ?? 0,
+    causalActiveChains: causalSummary?.activeChainCount ?? 0,
+    causalHighImpactActiveChains: causalSummary?.highImpactActiveChainCount ?? 0,
+    causalNewActiveChains: causalDelta?.newActiveChainCount ?? 0,
     experimentsPlanned: experimentSummary?.plannedExperimentCount ?? 0,
     experimentsExecuted: experimentSummary?.executedExperimentCount ?? 0,
     experimentPositive: experimentSummary?.positiveObservationCount ?? 0,
@@ -146,6 +166,7 @@ async function scanCommand(args, io) {
     } : null,
     outputDir, report: result.artifacts.report, badge: result.artifacts.badge, sarif: result.artifacts.sarif,
     experimentsArtifact: result.artifacts.experiments ?? null,
+    causalArtifact: result.artifacts.causal ?? null,
     sbom: result.artifacts.sbom ?? null, proof: result.artifacts.proof, provenance: result.artifacts.provenance,
     attestation: result.artifacts.attestation ?? null, sigstore: result.artifacts.sigstore ?? null, receipt: result.report.receipt.sha256
   };
@@ -163,6 +184,8 @@ async function scanCommand(args, io) {
   }
   if (reasoningThreshold && reasoningMeetsSeverity(result.report.reasoning, reasoningThreshold)) return 4;
   if (newReasoningThreshold && reasoningDifferentialMeetsSeverity(result.report.differential?.reasoning, newReasoningThreshold)) return 5;
+  if (causalThreshold && causalMeetsSeverity(result.report.causal, causalThreshold)) return 6;
+  if (newCausalThreshold && causalDifferentialMeetsSeverity(result.report.differential?.causal, newCausalThreshold)) return 7;
   return 0;
 }
 
@@ -288,6 +311,7 @@ function printHumanSummary(summary, io) {
   io.log(`  Coverage:        ${Math.round(summary.coverage * 100)}% (${summary.filesInspected} files)`);
   io.log(`  Reasoning:       ${summary.viableAttackPaths} viable paths, ${summary.invariantViolations} invariant violations`);
   io.log(`  Experiments:     ${summary.experiments} (${summary.experimentsExecuted}/${summary.experimentsPlanned} executed, ${summary.experimentPositive} positive)`);
+  io.log(`  Causal:          ${summary.causal} (${summary.causalActiveChains}/${summary.causalChains} active, ${summary.causalHighImpactActiveChains} high-impact)`);
   io.log(`  Runtime:         ${summary.runtime}`);
   io.log(`  Supply chain:    ${summary.supplyChain}`);
   io.log(`  ForgeOS:         ${summary.forgeos}`);
@@ -297,7 +321,7 @@ function printHumanSummary(summary, io) {
   io.log(`  Receipt:         ${summary.receipt}\n`);
 }
 function helpText() {
-  return `RepoTrial ${VERSION} — evidence-backed static, runtime, supply-chain, adaptive experiments, differential, reasoning, and ForgeOS analysis
+  return `RepoTrial ${VERSION} — evidence-backed static, runtime, supply-chain, adaptive experiments, causal attack synthesis, differential, reasoning, and ForgeOS analysis
 
 Usage:
   repotrial scan [path] [options]
@@ -330,6 +354,14 @@ Adaptive experiments:
   --experiment-max-per-candidate <n> Maximum experiments per runtime candidate (default: 2; hard cap: 8)
   --experiment-timeout <ms>         Per-experiment wall-clock limit; reuses runtime timeout by default
 
+Causal adversarial reasoning:
+  --causal <mode>                   off | analyze | active (default: off)
+  --causal-max-depth <n>            Maximum causal chain depth (default: 8; hard cap: 16)
+  --causal-max-chains <n>           Maximum retained causal chains (default: 64; hard cap: 256)
+  --causal-max-runs <n>             Maximum active causal episodes (default: 6; hard cap: 32)
+  --causal-max-per-candidate <n>     Maximum active probes per runtime candidate (default: 2; hard cap: 8)
+  --causal-timeout <ms>             Per-phase active causal sandbox timeout
+
 Supply-chain analysis:
   --supply-chain <mode>             off | offline | osv
   --osv-url <url>                   OSV querybatch endpoint
@@ -344,6 +376,8 @@ Differential and gates:
   --fail-on-new <verdict>           Exit 3 for newly introduced risk only
   --fail-on-reasoning <severity>    Exit 4 for active reasoning risk at info | low | medium | high | critical
   --fail-on-new-reasoning <severity> Exit 5 for newly introduced reasoning regressions
+  --fail-on-causal <severity>       Exit 6 for active causal chains at or above severity
+  --fail-on-new-causal <severity>   Exit 7 for newly active/regressed causal chains
 
 Integrity and provenance:
   --signing-key <pem>               Sign provenance as an Ed25519 DSSE envelope

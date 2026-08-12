@@ -5,6 +5,7 @@ import { scanRepository } from '../src/core/analyze.mjs';
 import { calculateVerdict, verdictMeetsThreshold } from '../src/core/verdict.mjs';
 import { encodeGithubCommandValue, normalizeActionChoice, normalizeActionThreshold } from '../src/github.mjs';
 import { normalizeReasoningThreshold, reasoningMeetsSeverity, reasoningDifferentialMeetsSeverity } from '../src/reasoning/gates.mjs';
+import { normalizeCausalThreshold, causalMeetsSeverity, causalDifferentialMeetsSeverity } from '../src/reasoning/causal-gates.mjs';
 
 const root = process.env.INPUT_PATH || '.';
 const outputDir = path.resolve(process.env.INPUT_OUTPUT || '.repotrial');
@@ -12,16 +13,26 @@ const forgeMode = normalizeActionChoice(process.env.INPUT_FORGEOS_MODE, 'forgeos
 const forgeDepth = normalizeActionChoice(process.env.INPUT_FORGEOS_DEPTH, 'forgeos-depth', ['security', 'full'], 'security');
 const runtimeMode = normalizeActionChoice(process.env.INPUT_RUNTIME_MODE, 'runtime-mode', ['off', 'auto', 'sandbox'], 'off');
 const experimentMode = normalizeActionChoice(process.env.INPUT_EXPERIMENT_MODE, 'experiment-mode', ['off', 'plan', 'sandbox'], 'off');
+const causalMode = normalizeActionChoice(process.env.INPUT_CAUSAL_MODE, 'causal-mode', ['off', 'analyze', 'active'], 'off');
 const supplyMode = normalizeActionChoice(process.env.INPUT_SUPPLY_CHAIN_MODE, 'supply-chain-mode', ['off', 'offline', 'osv'], 'offline');
 const experimentMaxRuns = positiveInteger(process.env.INPUT_EXPERIMENT_MAX_RUNS, 6, 'experiment-max-runs');
 const experimentMaxPerCandidate = positiveInteger(process.env.INPUT_EXPERIMENT_MAX_PER_CANDIDATE, 2, 'experiment-max-per-candidate');
 const experimentTimeout = process.env.INPUT_EXPERIMENT_TIMEOUT
   ? positiveInteger(process.env.INPUT_EXPERIMENT_TIMEOUT, 10_000, 'experiment-timeout')
   : undefined;
+const causalMaxDepth = positiveInteger(process.env.INPUT_CAUSAL_MAX_DEPTH, 8, 'causal-max-depth');
+const causalMaxChains = positiveInteger(process.env.INPUT_CAUSAL_MAX_CHAINS, 64, 'causal-max-chains');
+const causalMaxRuns = positiveInteger(process.env.INPUT_CAUSAL_MAX_RUNS, 6, 'causal-max-runs');
+const causalMaxPerCandidate = positiveInteger(process.env.INPUT_CAUSAL_MAX_PER_CANDIDATE, 2, 'causal-max-per-candidate');
+const causalTimeout = process.env.INPUT_CAUSAL_TIMEOUT
+  ? positiveInteger(process.env.INPUT_CAUSAL_TIMEOUT, 10_000, 'causal-timeout')
+  : undefined;
 const failOn = normalizeActionThreshold(process.env.INPUT_FAIL_ON);
 const failOnNew = process.env.INPUT_FAIL_ON_NEW ? normalizeActionThreshold(process.env.INPUT_FAIL_ON_NEW) : null;
 const failOnReasoning = process.env.INPUT_FAIL_ON_REASONING ? normalizeReasoningThreshold(process.env.INPUT_FAIL_ON_REASONING, 'fail-on-reasoning') : null;
 const failOnNewReasoning = process.env.INPUT_FAIL_ON_NEW_REASONING ? normalizeReasoningThreshold(process.env.INPUT_FAIL_ON_NEW_REASONING, 'fail-on-new-reasoning') : null;
+const failOnCausal = process.env.INPUT_FAIL_ON_CAUSAL ? normalizeCausalThreshold(process.env.INPUT_FAIL_ON_CAUSAL, 'fail-on-causal') : null;
+const failOnNewCausal = process.env.INPUT_FAIL_ON_NEW_CAUSAL ? normalizeCausalThreshold(process.env.INPUT_FAIL_ON_NEW_CAUSAL, 'fail-on-new-causal') : null;
 
 await mkdir(outputDir, { recursive: true });
 const result = await scanRepository({
@@ -48,6 +59,14 @@ const result = await scanRepository({
     maxPerCandidate: experimentMaxPerCandidate,
     ...(experimentTimeout ? { timeoutMs: experimentTimeout } : {})
   },
+  causal: {
+    mode: causalMode,
+    maxDepth: causalMaxDepth,
+    maxChains: causalMaxChains,
+    maxRuns: causalMaxRuns,
+    maxPerCandidate: causalMaxPerCandidate,
+    ...(causalTimeout ? { timeoutMs: causalTimeout } : {})
+  },
   supplyChain: { mode: supplyMode, osvUrl: process.env.OSV_QUERYBATCH_URL },
   baselineRef: process.env.INPUT_BASELINE_REF || undefined,
   signing: (process.env.INPUT_SIGNING_KEY || process.env.INPUT_SIGSTORE === 'true') ? {
@@ -70,6 +89,8 @@ const experimentSummary = report.experiments?.summary;
 const epistemicSummary = report.experiments?.epistemicDelta?.summary;
 const epistemicTransitions = Number(epistemicSummary?.hypothesisTransitionCount ?? 0)
   + Number(epistemicSummary?.attackPathTransitionCount ?? 0);
+const causalSummary = report.causal?.summary;
+const causalDelta = report.differential?.causal?.summary;
 await writeGithubOutput({
   verdict: report.verdict.label,
   score: String(report.verdict.score),
@@ -79,6 +100,10 @@ await writeGithubOutput({
   invariant_violations: String(invariantViolations),
   new_viable_attack_paths: String(reasoningDelta?.newViableAttackPathCount ?? 0),
   new_invariant_violations: String(reasoningDelta?.newInvariantViolationCount ?? 0),
+  causal_active_chains: String(causalSummary?.activeChainCount ?? 0),
+  causal_high_impact_active_chains: String(causalSummary?.highImpactActiveChainCount ?? 0),
+  new_causal_active_chains: String(causalDelta?.newActiveChainCount ?? 0),
+  causal_path: result.artifacts.causal ?? '',
   experiments_status: report.experiments?.status ?? 'disabled',
   experiments_planned: String(experimentSummary?.plannedExperimentCount ?? 0),
   experiments_executed: String(experimentSummary?.executedExperimentCount ?? 0),
@@ -105,6 +130,8 @@ if (failOnNew && report.differential) {
 }
 if (!process.exitCode && failOnReasoning && reasoningMeetsSeverity(report.reasoning, failOnReasoning)) process.exitCode = 4;
 if (!process.exitCode && failOnNewReasoning && reasoningDifferentialMeetsSeverity(report.differential?.reasoning, failOnNewReasoning)) process.exitCode = 5;
+if (!process.exitCode && failOnCausal && causalMeetsSeverity(report.causal, failOnCausal)) process.exitCode = 6;
+if (!process.exitCode && failOnNewCausal && causalDifferentialMeetsSeverity(report.differential?.causal, failOnNewCausal)) process.exitCode = 7;
 
 async function writeGithubOutput(values) {
   const filename = process.env.GITHUB_OUTPUT;
@@ -122,6 +149,8 @@ async function writeStepSummary(report, artifacts) {
   const experiments = report.experiments?.summary;
   const epistemic = report.experiments?.epistemicDelta?.summary;
   const epistemicTransitions = Number(epistemic?.hypothesisTransitionCount ?? 0) + Number(epistemic?.attackPathTransitionCount ?? 0);
+  const causal = report.causal?.summary;
+  const causalDelta = report.differential?.causal?.summary;
   const markdown = `## ⚖ RepoTrial: ${report.verdict.label}\n\n` +
     `| Metric | Result |\n|---|---:|\n` +
     `| Risk score | ${report.verdict.score}/100 |\n` +
@@ -139,6 +168,10 @@ async function writeStepSummary(report, artifacts) {
     `| New findings | ${report.differential?.summary?.new ?? 'not compared'} |\n` +
     `| New viable attack paths | ${delta?.newViableAttackPathCount ?? 'not compared'} |\n` +
     `| New invariant violations | ${delta?.newInvariantViolationCount ?? 'not compared'} |\n` +
+    `| Causal mode | ${report.causal?.mode ?? 'disabled'} |\n` +
+    `| Active causal chains | ${causal?.activeChainCount ?? 0} |\n` +
+    `| High-impact causal chains | ${causal?.highImpactActiveChainCount ?? 0} |\n` +
+    `| New active causal chains | ${causalDelta?.newActiveChainCount ?? 'not compared'} |\n` +
     `| Runtime sandbox | ${report.runtime.status} |\n` +
     `| Dependencies | ${report.supplyChain.componentCount} |\n` +
     `| Vulnerabilities | ${report.supplyChain.vulnerabilityCount} |\n` +
@@ -146,6 +179,7 @@ async function writeStepSummary(report, artifacts) {
     `| ForgeOS version | ${report.forgeos.engine?.version ?? 'not connected'} |\n\n` +
     `Portable report: \`${artifacts.report}\`\n\n` +
     `${artifacts.experiments ? `Adaptive experiments: \`${artifacts.experiments}\`\n\n` : ''}` +
+    `${artifacts.causal ? `Causal analysis: \`${artifacts.causal}\`\n\n` : ''}` +
     `SARIF: \`${artifacts.sarif}\`\n\n` +
     `Artifact proof: \`${artifacts.proof}\`\n\n` +
     `Receipt: \`${report.receipt.sha256}\`\n`;

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repotrial.dev/schemas/causal.schema.json",
+  "title": "RepoTrial Causal Adversarial Reasoning",
+  "type": "object",
+  "required": ["schemaVersion", "mode", "registry", "graph", "reasoning", "summary", "receipt"],
+  "properties": {
+    "schemaVersion": { "const": "repotrial.causal.v1" },
+    "mode": { "enum": ["analyze", "active"] },
+    "registry": {
+      "type": "object",
+      "required": ["schemaVersion", "receipt", "definitionCount"],
+      "properties": {
+        "schemaVersion": { "const": "repotrial.threat-registry.v1" },
+        "receipt": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "definitionCount": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "graph": { "type": "object", "required": ["schemaVersion", "nodes", "edges", "receipt"] },
+    "reasoning": { "type": "object", "required": ["schemaVersion", "chains", "summary", "receipt"] },
+    "activePlan": { "type": "object" },
+    "activeRun": { "type": "object" },
+    "epistemicDelta": { "type": "object" },
+    "summary": {
+      "type": "object",
+      "required": ["chainCount", "activeChainCount", "highImpactActiveChainCount", "partialChainCount", "maximumActiveSeverity", "plannedActiveExperimentCount", "registryThreatCount"],
+      "properties": {
+        "chainCount": { "type": "integer", "minimum": 0 },
+        "activeChainCount": { "type": "integer", "minimum": 0 },
+        "highImpactActiveChainCount": { "type": "integer", "minimum": 0 },
+        "partialChainCount": { "type": "integer", "minimum": 0 },
+        "maximumActiveSeverity": { "enum": ["info", "low", "medium", "high", "critical"] },
+        "plannedActiveExperimentCount": { "type": "integer", "minimum": 0 },
+        "registryThreatCount": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": true
+    },
+    "receipt": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "additionalProperties": true
+}

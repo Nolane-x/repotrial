@@ -2,6 +2,17 @@
 
 All notable changes are documented here.
 
+## 0.7.0 — 2026-08-12
+
+- Added the Causal Adversarial Reasoning Engine with a receipt-bound declarative threat registry and 12 built-in repository/agentic threat families.
+- Added a deterministic causal capability graph and bounded multi-chain synthesis with evidence ancestry, dominance pruning, explicit epistemic states, and configurable depth/chain budgets.
+- Added an active expected-information-gain planner using threat impact, uncertainty, severity-weighted chain centrality, discrimination power, expected evidence strength, execution cost, and redundancy.
+- Added bounded stateful adversarial episodes and causal traces that reuse the existing Linux containment boundary; unsupported persistence semantics fail closed as `INCONCLUSIVE`.
+- Added causal scan modes `off | analyze | active`, proof-bound `causal.json`, portable HTML rendering, public API exports, schemas, differential analysis, and exit codes 6/7 for current/new causal risk.
+- Added GitHub Action causal controls, outputs, artifacts, step-summary metrics, and the same shared causal gate semantics as the CLI.
+- Added a 12-case repository-native adversarial corpus with threat recall, active precision, stage recall, benign false-positive, and deterministic replay gates.
+- Preserved zero npm runtime dependencies and the 0.6 compatibility boundary when causal mode is `off`; `NOT_OBSERVED` remains episode-scoped and never becomes global proof of absence.
+
 ## 0.6.0 — 2026-08-12
 
 - Added the Adaptive Adversarial Experiment Engine: initial evidence reasoning now identifies runtime-addressable `PARTIAL` / `UNKNOWN` attack paths and can deterministically plan targeted verification experiments.

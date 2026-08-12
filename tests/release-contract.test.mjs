@@ -6,11 +6,11 @@ async function json(path) {
   return JSON.parse(await readFile(new URL(`../${path}`, import.meta.url), 'utf8'));
 }
 
-test('RepoTrial 0.6 package metadata points at the canonical Nolane-x repository', async () => {
+test('RepoTrial 0.7 package metadata points at the canonical Nolane-x repository', async () => {
   const pkg = await json('package.json');
   const lock = await json('package-lock.json');
 
-  assert.equal(pkg.version, '0.6.0');
+  assert.equal(pkg.version, '0.7.0');
   assert.equal(lock.version, pkg.version);
   assert.equal(lock.packages[''].version, pkg.version);
   assert.equal(Object.keys(pkg.dependencies ?? {}).length, 0);

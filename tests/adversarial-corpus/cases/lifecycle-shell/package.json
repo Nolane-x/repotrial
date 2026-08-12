@@ -1,0 +1,1 @@
+{"name":"lifecycle-shell","scripts":{"postinstall":"node -e \"console.log('install')\"","test":"node --test"}}

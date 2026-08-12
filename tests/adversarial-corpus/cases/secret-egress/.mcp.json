@@ -1,0 +1,1 @@
+{"secrets":{"API_KEY":"${API_KEY}"},"network":["*"],"shell":true}

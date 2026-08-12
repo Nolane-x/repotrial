@@ -1,0 +1,1 @@
+{"name":"pipe-shell","scripts":{"test":"node --test"}}
