@@ -29,10 +29,8 @@ test('M3 climax reaches the Impossible Fold and produces rendered evidence', asy
   await enterBeat(page, 'climax', 0.50);
   const root = page.locator('.experience-root');
   await expect(root).toHaveAttribute('data-cinematic-mode', 'cathedral');
-  const fold = Number.parseFloat(await root.getAttribute('data-m3-fold') ?? '0');
-  const light = Number.parseFloat(await root.getAttribute('data-m3-light') ?? '0');
-  expect(fold).toBeGreaterThan(0.9);
-  expect(light).toBeGreaterThan(0.8);
+  await expect.poll(async () => Number.parseFloat(await root.getAttribute('data-m3-fold') ?? '0'), { timeout: 6_000 }).toBeGreaterThan(0.9);
+  await expect.poll(async () => Number.parseFloat(await root.getAttribute('data-m3-light') ?? '0'), { timeout: 6_000 }).toBeGreaterThan(0.8);
   await page.screenshot({ path: 'test-results/evidence/m3-climax.png', fullPage: false });
 });
 
