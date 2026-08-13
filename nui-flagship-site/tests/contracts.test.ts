@@ -58,6 +58,20 @@ describe('M2 cinematic scene contract', () => {
     expect(resolution.portal).toBeLessThan(0.1);
   });
 
+  it('releases visual energy after climax and leaves the seven-domain sigil as the dominant final mechanism', () => {
+    const climax = getCinematicSceneState(0.84, false) as ReturnType<typeof getCinematicSceneState> & { network?: number };
+    const resolution = getCinematicSceneState(0.98, false) as ReturnType<typeof getCinematicSceneState> & { network?: number };
+
+    expect(climax.network).toBeGreaterThan(0.9);
+    expect(climax.orbit).toBeGreaterThan(0.9);
+    expect(climax.signal).toBeGreaterThan(0.85);
+    expect(resolution.sigil).toBeGreaterThan(0.9);
+    expect(resolution.network).toBeLessThan(0.08);
+    expect(resolution.orbit).toBeLessThan(0.2);
+    expect(resolution.signal).toBeLessThan(0.12);
+    expect(resolution.atmosphere).toBeLessThan(0.5);
+  });
+
   it('keeps reduced-motion camera neutral while full motion approaches and recedes from climax', () => {
     const early = cameraPoseAt(0.15, false);
     const climax = cameraPoseAt(0.84, false);
