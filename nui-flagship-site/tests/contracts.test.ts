@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EXPERIENCE_BEATS, energyAt, getExperienceState } from '../lib/experience';
-import { FIELD_NODES, getFieldStage, visibleFieldNodes } from '../lib/field-model';
+import { FIELD_EDGES, FIELD_NODES, getFieldStage, visibleFieldNodes } from '../lib/field-model';
 import { chooseCapabilityTier, reducedMotionProfile } from '../lib/capability';
 
 describe('flagship experience contract', () => {
@@ -27,6 +27,57 @@ describe('flagship experience contract', () => {
     expect(energyAt(0.84)).toBeGreaterThan(energyAt(0.52));
     expect(energyAt(0.84)).toBeGreaterThan(90);
     expect(energyAt(1)).toBe(45);
+  });
+});
+
+describe('M2 cinematic scene contract', () => {
+  it('authors materially different scene modes and a single spatial climax', async () => {
+    // @ts-expect-error TDD RED: scene-state is intentionally absent until this contract fails in CI.
+    const sceneModule = await import('../lib/scene-state').catch(() => null);
+    expect(sceneModule).not.toBeNull();
+    if (!sceneModule) return;
+
+    const silence = sceneModule.getCinematicSceneState(0.03, false);
+    const architecture = sceneModule.getCinematicSceneState(0.30, false);
+    const scaleBreak = sceneModule.getCinematicSceneState(0.43, false);
+    const motion = sceneModule.getCinematicSceneState(0.56, false);
+    const world = sceneModule.getCinematicSceneState(0.70, false);
+    const climax = sceneModule.getCinematicSceneState(0.84, false);
+    const resolution = sceneModule.getCinematicSceneState(0.98, false);
+
+    expect(silence.mode).toBe('seed');
+    expect(architecture.mode).toBe('territories');
+    expect(scaleBreak.mode).toBe('portal');
+    expect(motion.mode).toBe('signals');
+    expect(world.mode).toBe('environment');
+    expect(climax.mode).toBe('cathedral');
+    expect(resolution.mode).toBe('sigil');
+
+    expect(scaleBreak.portal).toBeGreaterThan(0.55);
+    expect(world.portal).toBeGreaterThan(0.45);
+    expect(climax.orbit).toBeGreaterThan(0.9);
+    expect(climax.signal).toBeGreaterThan(0.85);
+    expect(climax.envelope).toBeGreaterThan(architecture.envelope);
+    expect(climax.envelope).toBeGreaterThan(resolution.envelope);
+    expect(resolution.portal).toBeLessThan(0.1);
+  });
+
+  it('keeps reduced-motion camera neutral while full motion approaches and recedes from climax', async () => {
+    // @ts-expect-error TDD RED: scene-state is intentionally absent until this contract fails in CI.
+    const sceneModule = await import('../lib/scene-state').catch(() => null);
+    expect(sceneModule).not.toBeNull();
+    if (!sceneModule) return;
+
+    const early = sceneModule.cameraPoseAt(0.15, false);
+    const climax = sceneModule.cameraPoseAt(0.84, false);
+    const resolved = sceneModule.cameraPoseAt(0.98, false);
+    const reduced = sceneModule.cameraPoseAt(0.84, true);
+
+    expect(climax.position[2]).toBeLessThan(early.position[2]);
+    expect(resolved.position[2]).toBeGreaterThan(climax.position[2]);
+    expect(reduced.position).toEqual([0, 0, 9.4]);
+    expect(reduced.lookAt).toEqual([0, 0, 0]);
+    expect(reduced.fov).toBe(46);
   });
 });
 
@@ -60,6 +111,33 @@ describe('intelligence field semantics', () => {
     expect(fieldEnvelope(0.84)).toBeGreaterThan(fieldEnvelope(0.3));
     expect(fieldEnvelope(0.84)).toBeGreaterThan(fieldEnvelope(0.98));
     expect(fieldEnvelope(1)).toBeLessThan(0.75);
+  });
+
+  it('defines causal signal routes using only real semantic edges', async () => {
+    const model = await import('../lib/field-model');
+    const routes = (model as unknown as { SIGNAL_ROUTES?: string[][] }).SIGNAL_ROUTES;
+    expect(routes).toBeDefined();
+    if (!routes) return;
+    expect(routes.length).toBeGreaterThanOrEqual(6);
+
+    const edgeKeys = new Set(FIELD_EDGES.flatMap(([a, b]) => [`${a}|${b}`, `${b}|${a}`]));
+    for (const route of routes) {
+      expect(route.length).toBeGreaterThanOrEqual(2);
+      for (let index = 1; index < route.length; index += 1) {
+        expect(edgeKeys.has(`${route[index - 1]}|${route[index]}`)).toBe(true);
+      }
+    }
+  });
+
+  it('provides a compact seven-domain resolution sigil model', async () => {
+    const model = await import('../lib/field-model');
+    const buildSigil = (model as unknown as { resolutionSigilNodes?: () => Array<{ domain: string; sigilPosition: [number, number, number] }> }).resolutionSigilNodes;
+    expect(typeof buildSigil).toBe('function');
+    if (!buildSigil) return;
+    const sigil = buildSigil();
+    expect(sigil).toHaveLength(7);
+    expect(new Set(sigil.map((node) => node.domain)).size).toBe(7);
+    expect(Math.max(...sigil.map((node) => Math.hypot(...node.sigilPosition)))).toBeLessThan(1.8);
   });
 });
 
