@@ -8,6 +8,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { chooseCapabilityTier, type CapabilityTier } from '../../lib/capability';
 import { energyAt, EXPERIENCE_BEATS, getExperienceState, type ExperienceBeat } from '../../lib/experience';
 import { getFieldStage } from '../../lib/field-model';
+import { getCinematicSceneState } from '../../lib/scene-state';
 
 const IntelligenceField = dynamic(() => import('../field/IntelligenceField'), { ssr: false });
 
@@ -21,6 +22,7 @@ const DOMAIN_ROWS = [
   ['VERIFY', 'Runtime · viewport · accessibility · release gates'],
 ] as const;
 
+const RESOLUTION_DOMAINS = ['product', 'craft', 'research', 'routing', 'evidence', 'critic', 'verification'] as const;
 const ROUTE_STEPS = ['RAW INTENT', 'ROUTE', 'DIVERGE', 'SYNTHESIZE', 'RENDER', 'CRITIQUE', 'FALSIFY', 'VERIFY'];
 
 export default function ExperienceShell() {
@@ -30,6 +32,7 @@ export default function ExperienceShell() {
   const state = useMemo(() => getExperienceState(progress), [progress]);
   const energy = energyAt(progress);
   const stage = getFieldStage(progress);
+  const scene = useMemo(() => getCinematicSceneState(progress, reducedMotion), [progress, reducedMotion]);
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -76,14 +79,28 @@ export default function ExperienceShell() {
     '--story-progress': progress,
     '--story-energy': energy / 100,
     '--beat-progress': state.localProgress,
+    '--cinematic-core': scene.core,
+    '--cinematic-orbit': scene.orbit,
+    '--cinematic-portal': scene.portal,
+    '--cinematic-signal': scene.signal,
+    '--cinematic-atmosphere': scene.atmosphere,
+    '--cinematic-sigil': scene.sigil,
   } as CSSProperties;
 
   return (
-    <div className={`experience-root stage-${stage}`} style={style}>
+    <div
+      className={`experience-root stage-${stage} mode-${scene.mode}`}
+      data-cinematic-mode={scene.mode}
+      data-cinematic-portal={scene.portal.toFixed(2)}
+      data-cinematic-signal={scene.signal.toFixed(2)}
+      data-cinematic-sigil={scene.sigil.toFixed(2)}
+      style={style}
+    >
       <a className="skip-link" href="#content">Skip to content</a>
       <div className="atmosphere" aria-hidden="true" />
+      <div className="cinematic-vignette" aria-hidden="true" />
       <div className="field-layer" aria-hidden="true">
-        <IntelligenceField progress={progress} energy={energy / 100} tier={tier} reducedMotion={reducedMotion} />
+        <IntelligenceField progress={progress} energy={energy / 100} tier={tier} reducedMotion={reducedMotion} scene={scene} />
       </div>
       <nav className="site-nav" aria-label="Primary">
         <a className="wordmark" href="#top" aria-label="Nolane home"><span className="wordmark-mark">N</span><span>NOLANE</span></a>
@@ -94,7 +111,7 @@ export default function ExperienceShell() {
         <a className="nav-action" href="https://github.com/Nolane-x/Nolane-UI-Intelligence">SOURCE ↗</a>
       </nav>
       <div className="progress-rail" aria-hidden="true"><span style={{ transform: `scaleY(${Math.max(0.015, progress)})` }} /></div>
-      <div className="field-hud" aria-hidden="true"><span>{stage.toUpperCase()}</span><span>{tier.toUpperCase()} / {Math.round(energy)}E</span></div>
+      <div className="field-hud" aria-hidden="true"><span>{scene.mode.toUpperCase()}</span><span>{tier.toUpperCase()} / {Math.round(energy)}E</span></div>
 
       <main id="content">
         {EXPERIENCE_BEATS.map((beat) => <BeatSection key={beat.id} beat={beat} reducedMotion={reducedMotion} />)}
@@ -143,23 +160,52 @@ function ArchitectureRows() {
 }
 
 function ScaleStatement() {
-  return <div className="scale-statement" aria-label="158 routed skills"><span className="scale-number">158</span><span className="scale-label">ROUTED<br />SPECIALISTS</span><span className="scale-sub">ONE COHERENT<br />DECISION SYSTEM</span></div>;
+  return (
+    <div className="scale-m2-wrap">
+      <div className="depth-aperture-copy" aria-hidden="true">
+        <i /><i /><i /><i />
+        <span>DEPTH / 158</span>
+      </div>
+      <div className="scale-statement" aria-label="158 routed skills">
+        <span className="scale-number">158</span>
+        <span className="scale-label">ROUTED<br />SPECIALISTS</span>
+        <span className="scale-sub">ONE COHERENT<br />DECISION SYSTEM</span>
+      </div>
+    </div>
+  );
 }
 
 function RouteTrace() {
   return <div className="route-trace" aria-label="NUI route lifecycle">{ROUTE_STEPS.map((step, index) => (
-    <div className="route-step" key={step}><span>{String(index + 1).padStart(2, '0')}</span><b>{step}</b><i /></div>
-  ))}</div>;
+    <div className="route-step" key={step} style={{ '--route-index': index } as CSSProperties}><span>{String(index + 1).padStart(2, '0')}</span><b>{step}</b><i /></div>
+  ))}<span className="route-energy" aria-hidden="true" /></div>;
 }
 
 function WorldStatement() {
-  return <div className="world-statement" aria-hidden="true"><span>THE PAGE</span><strong>GIVES WAY</strong><span>TO THE SYSTEM</span></div>;
+  return (
+    <div className="world-m2-wrap">
+      <div className="world-depth-frame" aria-hidden="true"><i /><i /><i /><i /><span>ENVIRONMENT / OPEN</span></div>
+      <div className="world-statement" aria-hidden="true"><span>THE PAGE</span><strong>GIVES WAY</strong><span>TO THE SYSTEM</span></div>
+    </div>
+  );
 }
 
 function ClimaxStatement() {
-  return <div className="climax-statement"><span>ONE</span><strong>ARCHITECTURE</strong><small>product × craft × research × routing × evidence × critics × verification</small></div>;
+  return (
+    <div className="climax-m2-wrap">
+      <div className="cathedral-axis" aria-hidden="true"><i /><i /><span>07 / CONVERGENCE</span></div>
+      <div className="climax-statement"><span>ONE</span><strong>ARCHITECTURE</strong><small>product × craft × research × routing × evidence × critics × verification</small></div>
+    </div>
+  );
 }
 
 function Resolution() {
-  return <div className="resolution-actions"><a className="primary-cta" href="https://github.com/Nolane-x/Nolane-UI-Intelligence"><span>ENTER THE SYSTEM</span><i>↗</i></a><p>Open source intelligence for agents that refuse to confuse “it renders” with “it is designed.”</p></div>;
+  return (
+    <div className="resolution-m2-wrap">
+      <div className="resolution-domain-marks" aria-label="Seven NUI domains converge">
+        {RESOLUTION_DOMAINS.map((domain, index) => <span className="resolution-domain-mark" data-domain={domain} key={domain}><i>{String(index + 1).padStart(2, '0')}</i><b>{domain}</b></span>)}
+      </div>
+      <div className="resolution-actions"><a className="primary-cta" href="https://github.com/Nolane-x/Nolane-UI-Intelligence"><span>ENTER THE SYSTEM</span><i>↗</i></a><p>Open source intelligence for agents that refuse to confuse “it renders” with “it is designed.”</p></div>
+    </div>
+  );
 }
