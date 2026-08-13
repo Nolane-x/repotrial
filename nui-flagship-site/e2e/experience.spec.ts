@@ -7,7 +7,7 @@ const evidenceBeats = [
   ['motion', 'causality', 0.40],
   ['world-opens', 'immersion', 0.42],
   ['climax', 'awe', 0.48],
-  ['resolution', 'resolve', 0.95],
+  ['resolution', 'resolve', 1.0],
 ] as const;
 
 async function scrollIntoBeat(page: Page, id: string, local = 0.35) {
