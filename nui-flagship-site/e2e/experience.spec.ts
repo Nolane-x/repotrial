@@ -25,12 +25,21 @@ test('renders the complete semantic story and captures authored beat evidence', 
   }
 });
 
-test('semantic nav state follows the physically visible story beat', async ({ page }) => {
+test('semantic state follows every materially visible story beat', async ({ page }) => {
   await page.goto('/');
-  await scrollIntoBeat(page, 'scale-break', 0.45);
-  await expect(page.locator('.nav-state-title')).toHaveText('magnitude');
-  await scrollIntoBeat(page, 'climax', 0.45);
-  await expect(page.locator('.nav-state-title')).toHaveText('awe');
+  const cases = [
+    ['architecture', 'scope'],
+    ['scale-break', 'magnitude'],
+    ['motion', 'causality'],
+    ['world-opens', 'immersion'],
+    ['climax', 'awe'],
+    ['resolution', 'resolve'],
+  ] as const;
+
+  for (const [beat, intent] of cases) {
+    await scrollIntoBeat(page, beat, 0.35);
+    await expect(page.locator('.nav-state-title')).toHaveText(intent);
+  }
 });
 
 test('preserves semantic progression under reduced motion', async ({ page }) => {
