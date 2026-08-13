@@ -1,0 +1,33 @@
+@media (max-width: 760px) {
+  .beat-inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .beat-copy,
+  .beat:nth-child(even) .beat-copy,
+  .beat--climax .beat-copy,
+  .beat--resolution .beat-copy {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  h1 {
+    max-width: 100%;
+    font-size: min(13.5vw, 4.4rem);
+  }
+
+  .climax-statement {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .climax-statement strong {
+    max-width: 100%;
+    font-size: min(11.2vw, 4.6rem);
+    letter-spacing: -0.075em;
+  }
+
+  .climax-statement small {
+    max-width: 100%;
+  }
+}
