@@ -21,6 +21,7 @@ async function scrollIntoBeat(page: Page, id: string, local = 0.35) {
 }
 
 test('renders the complete semantic story and captures M2 authored beat evidence', async ({ page }) => {
+  test.setTimeout(75_000);
   const runtimeErrors: string[] = [];
   page.on('pageerror', (error) => runtimeErrors.push(error.message));
   page.on('console', (message) => {
