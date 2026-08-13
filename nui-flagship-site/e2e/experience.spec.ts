@@ -1,6 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
-const evidenceBeats = ['silence', 'architecture', 'motion', 'climax', 'resolution'] as const;
+const evidenceBeats = [
+  ['silence', 'quiet authority'],
+  ['architecture', 'scope'],
+  ['motion', 'causality'],
+  ['climax', 'awe'],
+  ['resolution', 'resolve'],
+] as const;
 
 async function scrollIntoBeat(page: Page, id: string, local = 0.35) {
   await page.evaluate(({ beatId, t }) => {
@@ -13,16 +19,25 @@ async function scrollIntoBeat(page: Page, id: string, local = 0.35) {
 }
 
 test('renders the complete semantic story and captures authored beat evidence', async ({ page }) => {
+  const runtimeErrors: string[] = [];
+  page.on('pageerror', (error) => runtimeErrors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error') runtimeErrors.push(message.text());
+  });
+
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('INTELLIGENCE');
   await expect(page.locator('main')).toBeVisible();
   await expect(page.locator('[data-beat]')).toHaveCount(8);
   await expect(page.getByRole('navigation')).toBeVisible();
 
-  for (const id of evidenceBeats) {
+  for (const [id, intent] of evidenceBeats) {
     await scrollIntoBeat(page, id);
+    await expect(page.locator('.nav-state-title')).toHaveText(intent);
     await page.screenshot({ path: `test-results/evidence/desktop-${id}.png`, fullPage: false });
   }
+
+  expect(runtimeErrors).toEqual([]);
 });
 
 test('semantic state follows every materially visible story beat', async ({ page }) => {

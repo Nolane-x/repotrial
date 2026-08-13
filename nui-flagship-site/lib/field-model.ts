@@ -34,8 +34,25 @@ export const FIELD_EDGES: Array<[string, string]> = [
 
 export type FieldStage = 'seed' | 'relation' | 'architecture' | 'routing' | 'synthesis' | 'climax' | 'resolution';
 
+const RESOLUTION_REPRESENTATIVE_IDS = ['product-truth', 'motion', 'source', 'routing', 'evidence', 'critic', 'release'] as const;
+const FIELD_ENVELOPE_KEYS: Array<[number, number]> = [
+  [0, 0.18],
+  [0.08, 0.30],
+  [0.20, 0.58],
+  [0.50, 0.92],
+  [0.65, 1.16],
+  [0.78, 1.42],
+  [0.84, 1.62],
+  [0.90, 1.34],
+  [1, 0.58],
+];
+
+function clamp01(value: number) {
+  return Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
+}
+
 export function getFieldStage(progress: number): FieldStage {
-  const p = Math.min(1, Math.max(0, progress));
+  const p = clamp01(progress);
   if (p < 0.08) return 'seed';
   if (p < 0.20) return 'relation';
   if (p < 0.50) return 'architecture';
@@ -47,14 +64,31 @@ export function getFieldStage(progress: number): FieldStage {
 
 export function visibleFieldNodes(progress: number) {
   const stage = getFieldStage(progress);
-  const countByStage: Record<FieldStage, number> = {
+  if (stage === 'resolution') {
+    return RESOLUTION_REPRESENTATIVE_IDS.map((id) => FIELD_NODES.find((node) => node.id === id)!).filter(Boolean);
+  }
+  const countByStage: Exclude<Record<FieldStage, number>, { resolution: number }> & { resolution?: number } = {
     seed: 1,
     relation: 3,
     architecture: 8,
     routing: 11,
     synthesis: 14,
     climax: FIELD_NODES.length,
-    resolution: 7,
   };
-  return FIELD_NODES.slice(0, countByStage[stage]);
+  return FIELD_NODES.slice(0, countByStage[stage] ?? FIELD_NODES.length);
+}
+
+export function fieldEnvelope(progress: number) {
+  const p = clamp01(progress);
+  if (p <= FIELD_ENVELOPE_KEYS[0][0]) return FIELD_ENVELOPE_KEYS[0][1];
+  for (let index = 1; index < FIELD_ENVELOPE_KEYS.length; index += 1) {
+    const [x1, y1] = FIELD_ENVELOPE_KEYS[index];
+    const [x0, y0] = FIELD_ENVELOPE_KEYS[index - 1];
+    if (p <= x1) {
+      const t = (p - x0) / Math.max(0.0001, x1 - x0);
+      const eased = t * t * (3 - 2 * t);
+      return y0 + (y1 - y0) * eased;
+    }
+  }
+  return FIELD_ENVELOPE_KEYS.at(-1)![1];
 }

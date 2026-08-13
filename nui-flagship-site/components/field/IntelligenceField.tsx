@@ -4,7 +4,7 @@ import { useMemo, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Line } from '@react-three/drei';
 import * as THREE from 'three';
-import { FIELD_EDGES, FIELD_NODES, visibleFieldNodes, type FieldDomain } from '../../lib/field-model';
+import { FIELD_EDGES, FIELD_NODES, fieldEnvelope, visibleFieldNodes, type FieldDomain } from '../../lib/field-model';
 import { TIER_BUDGETS, type CapabilityTier } from '../../lib/capability';
 
 const DOMAIN_COLOR: Record<FieldDomain, string> = {
@@ -65,6 +65,7 @@ function Scene({ progress, energy, tier, reducedMotion }: {
 
 function IntelligenceCore({ progress, energy, reducedMotion }: { progress: number; energy: number; reducedMotion: boolean }) {
   const mesh = useRef<THREE.Mesh>(null);
+  const envelope = fieldEnvelope(progress);
   const material = useMemo(() => new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
@@ -113,9 +114,7 @@ function IntelligenceCore({ progress, energy, reducedMotion }: { progress: numbe
     material.uniforms.uEnergy.value = energy;
     if (!reducedMotion) material.uniforms.uTime.value += delta;
     if (mesh.current) {
-      const growth = 0.18 + Math.min(1.6, progress * 1.85);
-      const resolve = progress > 0.9 ? 1 - (progress - 0.9) * 4.8 : 1;
-      const scale = Math.max(0.2, growth * resolve);
+      const scale = Math.max(0.1, envelope * (0.52 + energy * 0.42));
       mesh.current.scale.setScalar(scale);
       mesh.current.rotation.y += reducedMotion ? 0 : delta * (0.08 + energy * 0.09);
       mesh.current.rotation.x = progress * 0.36;
@@ -141,6 +140,7 @@ function SemanticNetwork({ progress, energy, tier, reducedMotion }: {
   const edges = FIELD_EDGES.filter(([a, b]) => visibleIds.has(a) && visibleIds.has(b));
   const nodeById = new Map(FIELD_NODES.map((node) => [node.id, node]));
   const lineOpacity = TIER_BUDGETS[tier].lineOpacity * (0.35 + energy * 0.9);
+  const envelope = fieldEnvelope(progress);
 
   useFrame((state, delta) => {
     if (!group.current || reducedMotion) return;
@@ -149,7 +149,7 @@ function SemanticNetwork({ progress, energy, tier, reducedMotion }: {
   });
 
   return (
-    <group ref={group} scale={0.82 + progress * 0.34}>
+    <group ref={group} scale={envelope}>
       {edges.map(([a, b]) => {
         const source = nodeById.get(a)!;
         const target = nodeById.get(b)!;
@@ -182,6 +182,8 @@ function SemanticDust({ progress, energy, tier, reducedMotion }: {
 }) {
   const points = useRef<THREE.Points>(null);
   const count = TIER_BUDGETS[tier].particles;
+  const envelope = fieldEnvelope(progress);
+  const resolutionFade = progress > 0.9 ? Math.max(0.42, 1 - (progress - 0.9) * 4.2) : 1;
   const positions = useMemo(() => {
     const data = new Float32Array(count * 3);
     for (let i = 0; i < count; i += 1) {
@@ -207,11 +209,11 @@ function SemanticDust({ progress, energy, tier, reducedMotion }: {
   });
 
   return (
-    <points ref={points} scale={0.62 + progress * 0.58}>
+    <points ref={points} scale={envelope * 0.92}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
-      <pointsMaterial size={0.018 + energy * 0.018} color="#b9ecff" transparent opacity={(0.08 + progress * 0.38) * (0.45 + energy)} depthWrite={false} blending={THREE.AdditiveBlending} sizeAttenuation />
+      <pointsMaterial size={0.018 + energy * 0.018} color="#b9ecff" transparent opacity={(0.08 + progress * 0.38) * (0.45 + energy) * resolutionFade} depthWrite={false} blending={THREE.AdditiveBlending} sizeAttenuation />
     </points>
   );
 }
