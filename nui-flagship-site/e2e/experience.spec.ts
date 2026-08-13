@@ -34,9 +34,13 @@ test('renders the complete semantic story and captures M2 authored beat evidence
   await expect(page.locator('[data-beat]')).toHaveCount(8);
   await expect(page.getByRole('navigation')).toBeVisible();
 
+  const root = page.locator('.experience-root');
   for (const [id, intent, local] of evidenceBeats) {
     await scrollIntoBeat(page, id, local);
     await expect(page.locator('.nav-state-title')).toHaveText(intent);
+    if (id === 'resolution') {
+      await expect(root).toHaveAttribute('data-cinematic-sigil', /^(0\.9[5-9]|1\.00)$/, { timeout: 5_000 });
+    }
     await page.screenshot({ path: `test-results/evidence/desktop-${id}.png`, fullPage: false });
   }
 
