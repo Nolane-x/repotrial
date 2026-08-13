@@ -1,25 +1,36 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-const shots = [
-  ['00-silence', 0],
-  ['35-architecture', 0.35],
-  ['58-motion', 0.58],
-  ['84-climax', 0.84],
-  ['98-resolution', 0.98],
-] as const;
+const evidenceBeats = ['silence', 'architecture', 'motion', 'climax', 'resolution'] as const;
 
-test('renders the complete semantic story and captures scroll evidence', async ({ page }) => {
+async function scrollIntoBeat(page: Page, id: string, local = 0.35) {
+  await page.evaluate(({ beatId, t }) => {
+    const element = document.querySelector<HTMLElement>(`[data-beat="${beatId}"]`);
+    if (!element) throw new Error(`missing beat ${beatId}`);
+    const available = Math.max(0, element.offsetHeight - window.innerHeight);
+    window.scrollTo({ top: element.offsetTop + available * t, behavior: 'instant' });
+  }, { beatId: id, t: local });
+  await page.waitForTimeout(420);
+}
+
+test('renders the complete semantic story and captures authored beat evidence', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('INTELLIGENCE');
   await expect(page.locator('main')).toBeVisible();
   await expect(page.locator('[data-beat]')).toHaveCount(8);
   await expect(page.getByRole('navigation')).toBeVisible();
 
-  for (const [name, progress] of shots) {
-    await page.evaluate((p) => window.scrollTo({ top: (document.documentElement.scrollHeight - innerHeight) * p, behavior: 'instant' }), progress);
-    await page.waitForTimeout(350);
-    await page.screenshot({ path: `test-results/evidence/desktop-${name}.png`, fullPage: false });
+  for (const id of evidenceBeats) {
+    await scrollIntoBeat(page, id);
+    await page.screenshot({ path: `test-results/evidence/desktop-${id}.png`, fullPage: false });
   }
+});
+
+test('semantic nav state follows the physically visible story beat', async ({ page }) => {
+  await page.goto('/');
+  await scrollIntoBeat(page, 'scale-break', 0.45);
+  await expect(page.locator('.nav-state-title')).toHaveText('magnitude');
+  await scrollIntoBeat(page, 'climax', 0.45);
+  await expect(page.locator('.nav-state-title')).toHaveText('awe');
 });
 
 test('preserves semantic progression under reduced motion', async ({ page }) => {
@@ -27,17 +38,25 @@ test('preserves semantic progression under reduced motion', async ({ page }) => 
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduce');
   await expect(page.locator('[data-beat="climax"]')).toContainText(/architecture|system|intelligence/i);
-  await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight * 0.84, behavior: 'instant' }));
-  await page.waitForTimeout(200);
+  await scrollIntoBeat(page, 'climax', 0.45);
   await page.screenshot({ path: 'test-results/evidence/reduced-motion-climax.png' });
 });
 
 test('mobile keeps the authored story without horizontal overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  expect(overflow).toBeLessThanOrEqual(1);
-  await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight * 0.78, behavior: 'instant' }));
-  await page.waitForTimeout(250);
+  const layout = await page.evaluate(() => {
+    const viewport = document.documentElement.clientWidth;
+    const offenders = [...document.querySelectorAll<HTMLElement>('body *')]
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { tag: element.tagName, className: element.className, text: element.textContent?.trim().slice(0, 42) ?? '', left: Math.round(rect.left), right: Math.round(rect.right) };
+      })
+      .filter((item) => item.right > viewport + 1 || item.left < -1)
+      .slice(0, 8);
+    return { overflow: document.documentElement.scrollWidth - viewport, offenders };
+  });
+  expect(layout, JSON.stringify(layout.offenders, null, 2)).toEqual({ overflow: 0, offenders: [] });
+  await scrollIntoBeat(page, 'world-opens', 0.4);
   await page.screenshot({ path: 'test-results/evidence/mobile-world-opens.png' });
 });
