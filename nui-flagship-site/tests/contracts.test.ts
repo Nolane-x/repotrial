@@ -9,14 +9,7 @@ describe('flagship experience contract', () => {
     expect(EXPERIENCE_BEATS[0].id).toBe('silence');
     expect(EXPERIENCE_BEATS.at(-1)?.id).toBe('resolution');
     expect(EXPERIENCE_BEATS.map((beat) => beat.id)).toEqual([
-      'silence',
-      'awakening',
-      'architecture',
-      'scale-break',
-      'motion',
-      'world-opens',
-      'climax',
-      'resolution',
+      'silence', 'awakening', 'architecture', 'scale-break', 'motion', 'world-opens', 'climax', 'resolution',
     ]);
   });
 
@@ -40,7 +33,7 @@ describe('flagship experience contract', () => {
 describe('intelligence field semantics', () => {
   it('contains product-specific NUI territories instead of generic particles', () => {
     const domains = new Set(FIELD_NODES.map((node) => node.domain));
-    for (const required of ['product', 'craft', 'research', 'routing', 'evidence', 'critic', 'verification']) {
+    for (const required of ['product', 'craft', 'research', 'routing', 'evidence', 'critic', 'verification'] as const) {
       expect(domains.has(required)).toBe(true);
     }
   });
