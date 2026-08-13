@@ -1,11 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const evidenceBeats = [
-  ['silence', 'quiet authority'],
-  ['architecture', 'scope'],
-  ['motion', 'causality'],
-  ['climax', 'awe'],
-  ['resolution', 'resolve'],
+  ['silence', 'quiet authority', 0.35],
+  ['architecture', 'scope', 0.35],
+  ['motion', 'causality', 0.35],
+  ['climax', 'awe', 0.45],
+  ['resolution', 'resolve', 0.88],
 ] as const;
 
 async function scrollIntoBeat(page: Page, id: string, local = 0.35) {
@@ -31,8 +31,8 @@ test('renders the complete semantic story and captures authored beat evidence', 
   await expect(page.locator('[data-beat]')).toHaveCount(8);
   await expect(page.getByRole('navigation')).toBeVisible();
 
-  for (const [id, intent] of evidenceBeats) {
-    await scrollIntoBeat(page, id);
+  for (const [id, intent, local] of evidenceBeats) {
+    await scrollIntoBeat(page, id, local);
     await expect(page.locator('.nav-state-title')).toHaveText(intent);
     await page.screenshot({ path: `test-results/evidence/desktop-${id}.png`, fullPage: false });
   }
@@ -57,12 +57,14 @@ test('semantic state follows every materially visible story beat', async ({ page
   }
 });
 
-test('preserves semantic progression under reduced motion', async ({ page }) => {
+test('preserves semantic progression and legibility under reduced motion', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduce');
   await expect(page.locator('[data-beat="climax"]')).toContainText(/architecture|system|intelligence/i);
   await scrollIntoBeat(page, 'climax', 0.45);
+  const opacity = await page.locator('.beat--climax .beat-copy').evaluate((element) => Number.parseFloat(getComputedStyle(element).opacity));
+  expect(opacity).toBeGreaterThanOrEqual(0.95);
   await page.screenshot({ path: 'test-results/evidence/reduced-motion-climax.png' });
 });
 
