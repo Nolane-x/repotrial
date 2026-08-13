@@ -67,7 +67,7 @@ export function visibleFieldNodes(progress: number) {
   if (stage === 'resolution') {
     return RESOLUTION_REPRESENTATIVE_IDS.map((id) => FIELD_NODES.find((node) => node.id === id)!).filter(Boolean);
   }
-  const countByStage: Exclude<Record<FieldStage, number>, { resolution: number }> & { resolution?: number } = {
+  const countByStage: Partial<Record<FieldStage, number>> = {
     seed: 1,
     relation: 3,
     architecture: 8,
