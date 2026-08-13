@@ -11,7 +11,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: nui-flagship-site
@@ -27,8 +27,14 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Unit contract tests
+      - name: Unit and geometry contracts
         run: npm test
+
+      - name: M3 source wiring contract
+        run: node tests/m3.source.cjs
+
+      - name: M3 CSS containment contract
+        run: node tests/m3.css.cjs
 
       - name: Production build
         run: npm run build
@@ -36,21 +42,21 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Browser evidence
+      - name: Browser and render evidence
         run: npm run test:e2e
 
-      - name: Package M2 milestone
+      - name: Package M3 milestone
         if: always()
-        run: zip -q -r /tmp/NUI-Flagship-Website-M2.zip . -x 'node_modules/*' '.next/*'
+        run: zip -q -r /tmp/NUI-Flagship-Website-M3.zip . -x 'node_modules/*' '.next/*'
 
-      - name: Upload M2 evidence and ZIP
+      - name: Upload M3 evidence and ZIP
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nui-flagship-m2
+          name: nui-flagship-m3
           path: |
             nui-flagship-site/test-results
             nui-flagship-site/playwright-report
-            /tmp/NUI-Flagship-Website-M2.zip
+            /tmp/NUI-Flagship-Website-M3.zip
           if-no-files-found: warn
           retention-days: 30

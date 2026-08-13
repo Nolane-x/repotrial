@@ -19,7 +19,7 @@ export default function SignalFlow({ scene, tier, reducedMotion }: {
   return (
     <group scale={scene.envelope}>
       {SIGNAL_ROUTES.slice(0, count).map((route, index) => (
-        <SignalPulse key={`${route.join('-')}-${index}`} route={route} index={index} intensity={scene.signal} reducedMotion={reducedMotion} />
+        <SignalPulse key={`${route.join('-')}-${index}`} route={route} index={index} intensity={scene.signal * (0.62 + scene.pulse * 0.72)} reducedMotion={reducedMotion} />
       ))}
     </group>
   );

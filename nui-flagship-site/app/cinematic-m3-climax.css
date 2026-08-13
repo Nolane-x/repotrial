@@ -1,0 +1,12 @@
+@layer cinematic {
+  .climax-m2-wrap { overflow:hidden; perspective:1200px; transform-style:preserve-3d; }
+  .impossible-fold { position:absolute; inset:0; pointer-events:none; overflow:hidden; opacity:calc(.08 + var(--m3-fold) * .72); }
+  .impossible-fold i { position:absolute; left:50%; top:50%; width:1px; height:70%; background:linear-gradient(transparent,rgba(226,249,255,.28),transparent); transform-origin:50% 0; }
+  .impossible-fold i:first-child { transform:rotate(calc(-12deg - var(--m3-fold) * 24deg)); }
+  .impossible-fold i:nth-child(2) { transform:rotate(calc(12deg + var(--m3-fold) * 24deg)); }
+  .impossible-fold i:nth-child(3) { transform:rotate(-34deg); opacity:.45; }
+  .impossible-fold i:nth-child(4) { transform:rotate(34deg); opacity:.45; }
+  .m3-resolution-lock { position:absolute; left:50%; top:-4.8rem; width:72px; aspect-ratio:1; transform:translateX(-50%); border:1px solid rgba(201,244,255,.16); opacity:calc(var(--cinematic-sigil) * .58); }
+  @media (max-width:760px) { .impossible-fold { inset:4%; } .m3-resolution-lock { width:58px; } }
+  @media (prefers-reduced-motion:reduce) { .m3-semantic-pulse i { animation:none !important; } .mode-cathedral .climax-statement { transform:none !important; } }
+}

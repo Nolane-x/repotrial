@@ -26,6 +26,11 @@ export type CinematicSceneState = {
   signal: number;
   atmosphere: number;
   sigil: number;
+  morph: number;
+  fold: number;
+  light: number;
+  typeDepth: number;
+  pulse: number;
   camera: CameraPose;
 };
 
@@ -115,6 +120,24 @@ export function getCinematicSceneState(progress: number, reducedMotion: boolean)
   const signal = clamp01(signalRise * (1 - sigil * 0.97));
   const atmosphereRaw = clamp01(0.14 + smoothstep(0.08, 0.78, p) * 0.62 + cathedral * 0.24);
   const atmosphere = clamp01(atmosphereRaw * (1 - sigil * 0.55));
+  const release = 1 - smoothstep(0.895, 0.985, p);
+  const morphBase =
+    smoothstep(0.16, 0.32, p) * 0.20 +
+    smoothstep(0.31, 0.49, p) * 0.44 +
+    smoothstep(0.60, 0.78, p) * 0.36;
+  const morph = clamp01(morphBase * release * (reducedMotion ? 0.58 : 1));
+  const foldFull = clamp01(smoothstep(0.700, 0.845, p) * (1 - smoothstep(0.855, 0.975, p)));
+  const fold = reducedMotion ? foldFull * 0.22 : foldFull;
+  const lightRaw = clamp01(
+    portalIntensityAt(p) * 0.34 +
+    smoothstep(0.58, 0.80, p) * 0.26 +
+    foldFull * 0.58
+  );
+  const light = clamp01(lightRaw * (1 - sigil * 0.94) * (reducedMotion ? 0.68 : 1));
+  const typeDepthRaw = clamp01(smoothstep(0.28, 0.69, p) * 0.68 + foldFull * 0.20);
+  const typeDepth = clamp01(typeDepthRaw * release * (reducedMotion ? 0.16 : 1));
+  const pulseWindow = smoothstep(0.45, 0.58, p) * (1 - smoothstep(0.78, 0.94, p));
+  const pulse = clamp01((pulseWindow * 0.92 + foldFull * 0.12) * release * (reducedMotion ? 0.34 : 1));
 
   return {
     mode: modeAt(p),
@@ -126,6 +149,11 @@ export function getCinematicSceneState(progress: number, reducedMotion: boolean)
     signal,
     atmosphere,
     sigil,
+    morph,
+    fold,
+    light,
+    typeDepth,
+    pulse,
     camera: cameraPoseAt(p, reducedMotion),
   };
 }

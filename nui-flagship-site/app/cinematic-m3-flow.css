@@ -1,0 +1,18 @@
+@layer cinematic {
+  .route-trace { isolation:isolate; }
+  .m3-semantic-pulse { position:absolute; inset:0; z-index:3; pointer-events:none; overflow:hidden; }
+  .m3-semantic-pulse::before { content:""; position:absolute; left:3%; right:3%; top:50%; height:1px; background:linear-gradient(90deg,transparent,rgba(115,226,255,.12),rgba(226,250,255,.42),rgba(187,151,255,.16),transparent); opacity:calc(var(--m3-pulse) * .72); }
+  .m3-semantic-pulse i { position:absolute; top:calc(50% - 2px); width:4px; height:4px; border-radius:50%; background:#e8fbff; box-shadow:0 0 18px rgba(105,225,255,.75),0 0 34px rgba(170,135,255,.28); opacity:var(--m3-pulse); animation:m3-causal-pulse 4.2s cubic-bezier(.55,0,.45,1) infinite; }
+  .m3-semantic-pulse i:nth-child(2){ animation-delay:-1.35s; }
+  .m3-semantic-pulse i:nth-child(3){ animation-delay:-2.7s; }
+  @keyframes m3-causal-pulse { 0%{left:4%;transform:scale(.6);opacity:0} 14%{opacity:var(--m3-pulse)} 50%{transform:scale(1.35)} 86%{opacity:var(--m3-pulse)} 100%{left:95%;transform:scale(.7);opacity:0} }
+  .world-m2-wrap { perspective:1100px; transform-style:preserve-3d; }
+  .m3-world-horizon { position:absolute; inset:-10% 0; z-index:0; overflow:hidden; pointer-events:none; opacity:calc(.08 + var(--m3-type-depth) * .58); transform:translateZ(calc(var(--m3-type-depth) * -22px)); }
+  .m3-world-horizon i { position:absolute; left:4%; right:4%; height:1px; background:linear-gradient(90deg,transparent,rgba(120,229,255,.18),rgba(198,176,255,.13),transparent); transform-origin:center; }
+  .m3-world-horizon i:first-child { top:26%; transform:perspective(700px) rotateX(54deg) scaleX(calc(.72 + var(--m3-type-depth) * .25)); }
+  .m3-world-horizon i:nth-child(2) { top:50%; opacity:.72; }
+  .m3-world-horizon i:nth-child(3) { top:74%; transform:perspective(700px) rotateX(-54deg) scaleX(calc(.72 + var(--m3-type-depth) * .25)); }
+  .m3-world-horizon span { position:absolute; left:50%; bottom:7%; transform:translateX(-50%); white-space:nowrap; font:500 .44rem/1 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.19em; color:rgba(220,246,252,.28); }
+  .mode-environment .world-statement { transform:translate3d(0,calc(var(--m3-type-depth) * -8px),calc(var(--m3-type-depth) * 34px)); transform-style:preserve-3d; }
+  .mode-environment .world-statement strong { letter-spacing:calc(.01em + var(--m3-type-depth) * .025em); }
+}

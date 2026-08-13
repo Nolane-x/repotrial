@@ -1,0 +1,17 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const postcss = require('postcss');
+const files = ['app/cinematic-m3.css','app/cinematic-m3-depth.css','app/cinematic-m3-flow.css','app/cinematic-m3-climax.css'];
+const css = files.map((path) => fs.readFileSync(path, 'utf8')).join('\n');
+const root = postcss.parse(css, { from: 'app/cinematic-m3.css' });
+assert.ok(root.nodes.length > 0, 'M3 CSS must parse');
+for (const variable of ['--m3-morph','--m3-fold','--m3-light','--m3-type-depth','--m3-pulse']) assert.ok(css.includes(variable), `missing ${variable}`);
+for (const selector of ['.m3-depth-grid','.m3-aperture-spine','.m3-semantic-pulse','.m3-world-horizon','.impossible-fold','.m3-resolution-lock']) assert.ok(css.includes(selector), `missing ${selector}`);
+assert.match(css, /\.m3-depth-grid\s*\{[^}]*position:\s*fixed;[^}]*overflow:\s*hidden;/s, 'fixed depth grid must self-contain');
+assert.match(css, /\.climax-m2-wrap\s*\{[^}]*overflow:\s*hidden;/s, 'fold parent must clip geometry');
+assert.match(css, /\.m3-semantic-pulse\s*\{[^}]*overflow:\s*hidden;/s, 'pulse must clip traveling points');
+assert.match(css, /@media\s*\(max-width:\s*760px\)/, 'mobile M3 overrides required');
+assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/, 'reduced-motion M3 overrides required');
+assert.ok(!/\.impossible-fold\s*\{[^}]*width:\s*100vw/s.test(css), 'fold must not own 100vw geometry');
+assert.ok(!/\.m3-aperture-spine\s*\{[^}]*width:\s*100vw/s.test(css), 'aperture must not own 100vw geometry');
+console.log(`M3 CSS contract PASS (${root.nodes.length} top-level nodes)`);
