@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import './responsive-overrides.css';
 import './cinematic-m2.css';
+import './mobile-m2-overrides.css';
 import './reduced-motion-overrides.css';
 
 export const metadata: Metadata = {

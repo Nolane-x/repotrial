@@ -1,0 +1,10 @@
+@media (max-width: 760px) {
+  /* Rotated squares expand by sqrt(2); keep their visual bounds inside a 390px authored viewport. */
+  .cathedral-axis::before {
+    width: min(60vw, 232px);
+  }
+
+  .cathedral-axis::after {
+    width: min(68vw, 264px);
+  }
+}
