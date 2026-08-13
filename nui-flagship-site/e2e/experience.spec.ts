@@ -3,8 +3,10 @@ import { expect, test, type Page } from '@playwright/test';
 const evidenceBeats = [
   ['silence', 'quiet authority', 0.35],
   ['architecture', 'scope', 0.35],
-  ['motion', 'causality', 0.35],
-  ['climax', 'awe', 0.45],
+  ['scale-break', 'magnitude', 0.45],
+  ['motion', 'causality', 0.40],
+  ['world-opens', 'immersion', 0.42],
+  ['climax', 'awe', 0.48],
   ['resolution', 'resolve', 0.88],
 ] as const;
 
@@ -15,10 +17,10 @@ async function scrollIntoBeat(page: Page, id: string, local = 0.35) {
     const available = Math.max(0, element.offsetHeight - window.innerHeight);
     window.scrollTo({ top: element.offsetTop + available * t, behavior: 'instant' });
   }, { beatId: id, t: local });
-  await page.waitForTimeout(420);
+  await page.waitForTimeout(520);
 }
 
-test('renders the complete semantic story and captures authored beat evidence', async ({ page }) => {
+test('renders the complete semantic story and captures M2 authored beat evidence', async ({ page }) => {
   const runtimeErrors: string[] = [];
   page.on('pageerror', (error) => runtimeErrors.push(error.message));
   page.on('console', (message) => {
@@ -40,21 +42,31 @@ test('renders the complete semantic story and captures authored beat evidence', 
   expect(runtimeErrors).toEqual([]);
 });
 
-test('semantic state follows every materially visible story beat', async ({ page }) => {
+test('cinematic scene mode follows the materially visible chapter', async ({ page }) => {
   await page.goto('/');
+  const root = page.locator('.experience-root');
   const cases = [
-    ['architecture', 'scope'],
-    ['scale-break', 'magnitude'],
-    ['motion', 'causality'],
-    ['world-opens', 'immersion'],
-    ['climax', 'awe'],
-    ['resolution', 'resolve'],
+    ['architecture', 'territories'],
+    ['scale-break', 'portal'],
+    ['motion', 'signals'],
+    ['world-opens', 'environment'],
+    ['climax', 'cathedral'],
+    ['resolution', 'sigil'],
   ] as const;
 
-  for (const [beat, intent] of cases) {
-    await scrollIntoBeat(page, beat, 0.35);
-    await expect(page.locator('.nav-state-title')).toHaveText(intent);
+  for (const [beat, mode] of cases) {
+    await scrollIntoBeat(page, beat, beat === 'resolution' ? 0.80 : 0.42);
+    await expect(root).toHaveAttribute('data-cinematic-mode', mode);
   }
+});
+
+test('M2 chapters expose distinct authored visual anchors', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('[data-beat="scale-break"] .depth-aperture-copy')).toBeVisible();
+  await expect(page.locator('[data-beat="motion"] .route-trace')).toBeVisible();
+  await expect(page.locator('[data-beat="world-opens"] .world-depth-frame')).toBeVisible();
+  await expect(page.locator('[data-beat="climax"] .climax-statement')).toBeVisible();
+  await expect(page.locator('[data-beat="resolution"] .resolution-domain-mark')).toHaveCount(7);
 });
 
 test('preserves semantic progression and legibility under reduced motion', async ({ page }) => {
@@ -62,13 +74,14 @@ test('preserves semantic progression and legibility under reduced motion', async
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduce');
   await expect(page.locator('[data-beat="climax"]')).toContainText(/architecture|system|intelligence/i);
-  await scrollIntoBeat(page, 'climax', 0.45);
+  await scrollIntoBeat(page, 'climax', 0.48);
   const opacity = await page.locator('.beat--climax .beat-copy').evaluate((element) => Number.parseFloat(getComputedStyle(element).opacity));
   expect(opacity).toBeGreaterThanOrEqual(0.95);
+  await expect(page.locator('.experience-root')).toHaveAttribute('data-cinematic-mode', 'cathedral');
   await page.screenshot({ path: 'test-results/evidence/reduced-motion-climax.png' });
 });
 
-test('mobile keeps the authored story without horizontal overflow', async ({ page }) => {
+test('mobile keeps authored depth without horizontal overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   const layout = await page.evaluate(() => {
@@ -83,6 +96,9 @@ test('mobile keeps the authored story without horizontal overflow', async ({ pag
     return { overflow: document.documentElement.scrollWidth - viewport, offenders };
   });
   expect(layout, JSON.stringify(layout.offenders, null, 2)).toEqual({ overflow: 0, offenders: [] });
-  await scrollIntoBeat(page, 'world-opens', 0.4);
+
+  await scrollIntoBeat(page, 'world-opens', 0.42);
   await page.screenshot({ path: 'test-results/evidence/mobile-world-opens.png' });
+  await scrollIntoBeat(page, 'climax', 0.48);
+  await page.screenshot({ path: 'test-results/evidence/mobile-climax.png' });
 });
