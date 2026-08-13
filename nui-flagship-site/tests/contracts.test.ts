@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EXPERIENCE_BEATS, energyAt, getExperienceState } from '../lib/experience';
-import { FIELD_NODES, getFieldStage } from '../lib/field-model';
+import { FIELD_NODES, getFieldStage, visibleFieldNodes } from '../lib/field-model';
 import { chooseCapabilityTier, reducedMotionProfile } from '../lib/capability';
 
 describe('flagship experience contract', () => {
@@ -44,6 +44,22 @@ describe('intelligence field semantics', () => {
     expect(getFieldStage(0.56)).toBe('routing');
     expect(getFieldStage(0.84)).toBe('climax');
     expect(getFieldStage(0.96)).toBe('resolution');
+  });
+
+  it('resolves to one representative from every NUI domain instead of truncating the graph', () => {
+    const resolved = visibleFieldNodes(0.96);
+    expect(resolved).toHaveLength(7);
+    expect(new Set(resolved.map((node) => node.domain))).toEqual(new Set(['product', 'craft', 'research', 'routing', 'evidence', 'critic', 'verification']));
+  });
+
+  it('expands toward the spatial climax and contracts decisively at final resolution', async () => {
+    const model = await import('../lib/field-model');
+    const fieldEnvelope = (model as unknown as { fieldEnvelope?: (progress: number) => number }).fieldEnvelope;
+    expect(typeof fieldEnvelope).toBe('function');
+    if (!fieldEnvelope) return;
+    expect(fieldEnvelope(0.84)).toBeGreaterThan(fieldEnvelope(0.3));
+    expect(fieldEnvelope(0.84)).toBeGreaterThan(fieldEnvelope(0.98));
+    expect(fieldEnvelope(1)).toBeLessThan(0.75);
   });
 });
 
