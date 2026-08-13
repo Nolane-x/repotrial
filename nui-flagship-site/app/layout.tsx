@@ -1,0 +1,15 @@
+import type { Metadata } from 'next';
+import './globals.css';
+
+export const metadata: Metadata = {
+  title: 'Nolane — Intelligence Is a System',
+  description: 'An experiential visualization of Nolane UI Intelligence: routing, research, craft, evidence, critics and verification as one living architecture.',
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="en" data-motion="full">
+      <body>{children}</body>
+    </html>
+  );
+}

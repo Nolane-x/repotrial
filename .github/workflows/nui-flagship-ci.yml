@@ -11,7 +11,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: nui-flagship-site
@@ -41,7 +41,7 @@ jobs:
 
       - name: Package milestone
         if: always()
-        run: zip -q -r /tmp/NUI-Flagship-Website-M1.zip . -x 'node_modules/*' '.next/cache/*'
+        run: zip -q -r /tmp/NUI-Flagship-Website-M1.zip . -x 'node_modules/*' '.next/*'
 
       - name: Upload evidence and ZIP
         if: always()
