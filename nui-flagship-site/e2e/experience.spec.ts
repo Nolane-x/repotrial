@@ -7,7 +7,7 @@ const evidenceBeats = [
   ['motion', 'causality', 0.40],
   ['world-opens', 'immersion', 0.42],
   ['climax', 'awe', 0.48],
-  ['resolution', 'resolve', 0.88],
+  ['resolution', 'resolve', 0.95],
 ] as const;
 
 async function scrollIntoBeat(page: Page, id: string, local = 0.35) {
@@ -56,7 +56,7 @@ test('cinematic scene mode follows the materially visible chapter', async ({ pag
   ] as const;
 
   for (const [beat, mode] of cases) {
-    await scrollIntoBeat(page, beat, beat === 'resolution' ? 0.80 : 0.42);
+    await scrollIntoBeat(page, beat, beat === 'resolution' ? 0.84 : 0.42);
     await expect(root).toHaveAttribute('data-cinematic-mode', mode);
   }
 });

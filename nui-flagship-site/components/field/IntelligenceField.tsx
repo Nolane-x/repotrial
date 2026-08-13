@@ -91,8 +91,7 @@ function SemanticNetwork({ progress, energy, tier, reducedMotion, scene }: {
   const visibleIds = new Set(nodes.map((node) => node.id));
   const edges = FIELD_EDGES.filter(([a, b]) => visibleIds.has(a) && visibleIds.has(b));
   const nodeById = new Map(FIELD_NODES.map((node) => [node.id, node]));
-  const networkFade = 1 - scene.sigil * 0.9;
-  const lineOpacity = TIER_BUDGETS[tier].lineOpacity * (0.30 + energy * 0.82) * networkFade;
+  const lineOpacity = TIER_BUDGETS[tier].lineOpacity * (0.30 + energy * 0.82) * scene.network;
 
   useFrame((state, delta) => {
     if (!group.current || reducedMotion) return;
@@ -113,11 +112,11 @@ function SemanticNetwork({ progress, energy, tier, reducedMotion, scene }: {
           <group key={node.id} position={node.position}>
             <mesh scale={(0.055 + node.weight * 0.035) * (0.75 + active * 0.55)}>
               <sphereGeometry args={[1, 16, 16]} />
-              <meshBasicMaterial color={DOMAIN_COLOR[node.domain]} transparent opacity={(0.48 + energy * 0.38) * networkFade} blending={THREE.AdditiveBlending} depthWrite={false} />
+              <meshBasicMaterial color={DOMAIN_COLOR[node.domain]} transparent opacity={(0.48 + energy * 0.38) * scene.network} blending={THREE.AdditiveBlending} depthWrite={false} />
             </mesh>
             <mesh scale={(0.16 + node.weight * 0.05) * (0.6 + energy * 0.5)}>
               <sphereGeometry args={[1, 12, 12]} />
-              <meshBasicMaterial color={DOMAIN_COLOR[node.domain]} transparent opacity={(0.03 + energy * 0.05) * networkFade} blending={THREE.AdditiveBlending} depthWrite={false} />
+              <meshBasicMaterial color={DOMAIN_COLOR[node.domain]} transparent opacity={(0.03 + energy * 0.05) * scene.network} blending={THREE.AdditiveBlending} depthWrite={false} />
             </mesh>
           </group>
         );

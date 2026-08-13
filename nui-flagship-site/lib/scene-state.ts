@@ -20,6 +20,7 @@ export type CinematicSceneState = {
   mode: CinematicMode;
   envelope: number;
   core: number;
+  network: number;
   orbit: number;
   portal: number;
   signal: number;
@@ -108,15 +109,22 @@ export function getCinematicSceneState(progress: number, reducedMotion: boolean)
   const orbitRise = smoothstep(0.17, 0.35, p);
   const signalRise = smoothstep(0.47, 0.59, p);
   const cathedral = smoothstep(0.74, 0.84, p) * (1 - smoothstep(0.90, 0.99, p));
+  const networkRelease = smoothstep(0.895, 0.975, p);
+  const network = clamp01(1 - networkRelease * 0.975);
+  const orbit = clamp01(orbitRise * (1 - sigil * 0.90));
+  const signal = clamp01(signalRise * (1 - sigil * 0.97));
+  const atmosphereRaw = clamp01(0.14 + smoothstep(0.08, 0.78, p) * 0.62 + cathedral * 0.24);
+  const atmosphere = clamp01(atmosphereRaw * (1 - sigil * 0.55));
 
   return {
     mode: modeAt(p),
     envelope: fieldEnvelope(p),
     core: 0.16 + smoothstep(0.04, 0.82, p) * 0.84,
-    orbit: clamp01(orbitRise * (1 - sigil * 0.28)),
+    network,
+    orbit,
     portal: portalIntensityAt(p),
-    signal: clamp01(signalRise * (1 - sigil * 0.72)),
-    atmosphere: clamp01(0.14 + smoothstep(0.08, 0.78, p) * 0.62 + cathedral * 0.24),
+    signal,
+    atmosphere,
     sigil,
     camera: cameraPoseAt(p, reducedMotion),
   };
