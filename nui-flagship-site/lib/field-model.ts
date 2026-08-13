@@ -32,7 +32,18 @@ export const FIELD_EDGES: Array<[string, string]> = [
   ['motion', 'verify'], ['type', 'verify'], ['verify', 'release'], ['evidence', 'release'], ['critic', 'release'],
 ];
 
+export const SIGNAL_ROUTES: string[][] = [
+  ['intent', 'product-truth', 'routing', 'graph', 'motion', 'verify', 'release'],
+  ['intent', 'product-truth', 'routing', 'source', 'synthesis', 'evidence', 'critic', 'adequacy', 'routing'],
+  ['graph', 'type', 'verify', 'release'],
+  ['graph', 'space', 'verify', 'release'],
+  ['evidence', 'critic', 'adequacy', 'routing', 'source'],
+  ['unknown', 'critic', 'adequacy', 'routing', 'graph', 'space'],
+  ['source', 'synthesis', 'evidence', 'release'],
+];
+
 export type FieldStage = 'seed' | 'relation' | 'architecture' | 'routing' | 'synthesis' | 'climax' | 'resolution';
+export type ResolutionSigilNode = FieldNode & { sigilPosition: [number, number, number] };
 
 const RESOLUTION_REPRESENTATIVE_IDS = ['product-truth', 'motion', 'source', 'routing', 'evidence', 'critic', 'release'] as const;
 const FIELD_ENVELOPE_KEYS: Array<[number, number]> = [
@@ -76,6 +87,19 @@ export function visibleFieldNodes(progress: number) {
     climax: FIELD_NODES.length,
   };
   return FIELD_NODES.slice(0, countByStage[stage] ?? FIELD_NODES.length);
+}
+
+export function resolutionSigilNodes(): ResolutionSigilNode[] {
+  const radius = 1.22;
+  return RESOLUTION_REPRESENTATIVE_IDS.map((id, index) => {
+    const node = FIELD_NODES.find((candidate) => candidate.id === id)!;
+    const angle = -Math.PI / 2 + (index / RESOLUTION_REPRESENTATIVE_IDS.length) * Math.PI * 2;
+    const z = index % 2 === 0 ? 0.08 : -0.08;
+    return {
+      ...node,
+      sigilPosition: [Math.cos(angle) * radius, Math.sin(angle) * radius, z],
+    };
+  });
 }
 
 export function fieldEnvelope(progress: number) {

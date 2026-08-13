@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EXPERIENCE_BEATS, energyAt, getExperienceState } from '../lib/experience';
-import { FIELD_EDGES, FIELD_NODES, getFieldStage, visibleFieldNodes } from '../lib/field-model';
+import { FIELD_EDGES, FIELD_NODES, SIGNAL_ROUTES, getFieldStage, resolutionSigilNodes, visibleFieldNodes } from '../lib/field-model';
+import { cameraPoseAt, getCinematicSceneState } from '../lib/scene-state';
 import { chooseCapabilityTier, reducedMotionProfile } from '../lib/capability';
 
 describe('flagship experience contract', () => {
@@ -31,19 +32,14 @@ describe('flagship experience contract', () => {
 });
 
 describe('M2 cinematic scene contract', () => {
-  it('authors materially different scene modes and a single spatial climax', async () => {
-    // @ts-expect-error TDD RED: scene-state is intentionally absent until this contract fails in CI.
-    const sceneModule = await import('../lib/scene-state').catch(() => null);
-    expect(sceneModule).not.toBeNull();
-    if (!sceneModule) return;
-
-    const silence = sceneModule.getCinematicSceneState(0.03, false);
-    const architecture = sceneModule.getCinematicSceneState(0.30, false);
-    const scaleBreak = sceneModule.getCinematicSceneState(0.43, false);
-    const motion = sceneModule.getCinematicSceneState(0.56, false);
-    const world = sceneModule.getCinematicSceneState(0.70, false);
-    const climax = sceneModule.getCinematicSceneState(0.84, false);
-    const resolution = sceneModule.getCinematicSceneState(0.98, false);
+  it('authors materially different scene modes and a single spatial climax', () => {
+    const silence = getCinematicSceneState(0.03, false);
+    const architecture = getCinematicSceneState(0.30, false);
+    const scaleBreak = getCinematicSceneState(0.43, false);
+    const motion = getCinematicSceneState(0.56, false);
+    const world = getCinematicSceneState(0.70, false);
+    const climax = getCinematicSceneState(0.84, false);
+    const resolution = getCinematicSceneState(0.98, false);
 
     expect(silence.mode).toBe('seed');
     expect(architecture.mode).toBe('territories');
@@ -62,16 +58,11 @@ describe('M2 cinematic scene contract', () => {
     expect(resolution.portal).toBeLessThan(0.1);
   });
 
-  it('keeps reduced-motion camera neutral while full motion approaches and recedes from climax', async () => {
-    // @ts-expect-error TDD RED: scene-state is intentionally absent until this contract fails in CI.
-    const sceneModule = await import('../lib/scene-state').catch(() => null);
-    expect(sceneModule).not.toBeNull();
-    if (!sceneModule) return;
-
-    const early = sceneModule.cameraPoseAt(0.15, false);
-    const climax = sceneModule.cameraPoseAt(0.84, false);
-    const resolved = sceneModule.cameraPoseAt(0.98, false);
-    const reduced = sceneModule.cameraPoseAt(0.84, true);
+  it('keeps reduced-motion camera neutral while full motion approaches and recedes from climax', () => {
+    const early = cameraPoseAt(0.15, false);
+    const climax = cameraPoseAt(0.84, false);
+    const resolved = cameraPoseAt(0.98, false);
+    const reduced = cameraPoseAt(0.84, true);
 
     expect(climax.position[2]).toBeLessThan(early.position[2]);
     expect(resolved.position[2]).toBeGreaterThan(climax.position[2]);
@@ -105,23 +96,15 @@ describe('intelligence field semantics', () => {
 
   it('expands toward the spatial climax and contracts decisively at final resolution', async () => {
     const model = await import('../lib/field-model');
-    const fieldEnvelope = (model as unknown as { fieldEnvelope?: (progress: number) => number }).fieldEnvelope;
-    expect(typeof fieldEnvelope).toBe('function');
-    if (!fieldEnvelope) return;
-    expect(fieldEnvelope(0.84)).toBeGreaterThan(fieldEnvelope(0.3));
-    expect(fieldEnvelope(0.84)).toBeGreaterThan(fieldEnvelope(0.98));
-    expect(fieldEnvelope(1)).toBeLessThan(0.75);
+    expect(model.fieldEnvelope(0.84)).toBeGreaterThan(model.fieldEnvelope(0.3));
+    expect(model.fieldEnvelope(0.84)).toBeGreaterThan(model.fieldEnvelope(0.98));
+    expect(model.fieldEnvelope(1)).toBeLessThan(0.75);
   });
 
-  it('defines causal signal routes using only real semantic edges', async () => {
-    const model = await import('../lib/field-model');
-    const routes = (model as unknown as { SIGNAL_ROUTES?: string[][] }).SIGNAL_ROUTES;
-    expect(routes).toBeDefined();
-    if (!routes) return;
-    expect(routes.length).toBeGreaterThanOrEqual(6);
-
+  it('defines causal signal routes using only real semantic edges', () => {
+    expect(SIGNAL_ROUTES.length).toBeGreaterThanOrEqual(6);
     const edgeKeys = new Set(FIELD_EDGES.flatMap(([a, b]) => [`${a}|${b}`, `${b}|${a}`]));
-    for (const route of routes) {
+    for (const route of SIGNAL_ROUTES) {
       expect(route.length).toBeGreaterThanOrEqual(2);
       for (let index = 1; index < route.length; index += 1) {
         expect(edgeKeys.has(`${route[index - 1]}|${route[index]}`)).toBe(true);
@@ -129,12 +112,8 @@ describe('intelligence field semantics', () => {
     }
   });
 
-  it('provides a compact seven-domain resolution sigil model', async () => {
-    const model = await import('../lib/field-model');
-    const buildSigil = (model as unknown as { resolutionSigilNodes?: () => Array<{ domain: string; sigilPosition: [number, number, number] }> }).resolutionSigilNodes;
-    expect(typeof buildSigil).toBe('function');
-    if (!buildSigil) return;
-    const sigil = buildSigil();
+  it('provides a compact seven-domain resolution sigil model', () => {
+    const sigil = resolutionSigilNodes();
     expect(sigil).toHaveLength(7);
     expect(new Set(sigil.map((node) => node.domain)).size).toBe(7);
     expect(Math.max(...sigil.map((node) => Math.hypot(...node.sigilPosition)))).toBeLessThan(1.8);
