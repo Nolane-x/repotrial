@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import './responsive-overrides.css';
+import './reduced-motion-overrides.css';
 
 export const metadata: Metadata = {
   title: 'Nolane — Intelligence Is a System',

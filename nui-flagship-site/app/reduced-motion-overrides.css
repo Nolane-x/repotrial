@@ -1,0 +1,10 @@
+@media (prefers-reduced-motion: reduce) {
+  .beat-copy {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .beat-copy * {
+    transition-duration: 0.001ms !important;
+  }
+}
